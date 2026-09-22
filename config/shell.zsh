@@ -159,8 +159,14 @@ if [[ -o interactive ]]; then
   if (( $+commands[zoxide] )) && (( ! $+functions[_zoxide_z] )); then
     eval "$(zoxide init zsh)"
   fi
-  if (( $+commands[starship] )) && [[ ${TERM:-dumb} != dumb && -z ${STARSHIP_SHELL:-} && ${PROMPT:-'%m%# '} == '%m%# ' ]]; then
-    eval "$(starship init zsh)"
+  if (( $+commands[starship] )) && [[ ${TERM:-dumb} != dumb && -z ${STARSHIP_SHELL:-} ]]; then
+    # zsh's stock prompt differs on macOS; recognize both stock forms while
+    # preserving a prompt that the user or a framework explicitly configured.
+    case ${PROMPT:-'%m%# '} in
+      '%m%# '|'%n@%m %1~ %# ')
+        eval "$(starship init zsh)"
+        ;;
+    esac
   fi
 
   if (( $+commands[eza] )); then
