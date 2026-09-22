@@ -1,0 +1,111 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+"$ORBIT_ROOT/scripts/profiles" --validate "$@"
+if [ "$(id -u)" -eq 0 ]; then
+  echo 'Run apply as your normal user, not with sudo; no packages or settings were changed.' >&2
+  exit 1
+fi
+if [ "$(uname -s)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
+  echo 'This setup targets Apple Silicon macOS; no packages or settings were changed.' >&2
+  exit 1
+fi
+if ! xcode-select -p >/dev/null 2>&1; then
+  echo 'Install Apple Command Line Tools with xcode-select --install, then rerun apply; no packages or settings were changed.' >&2
+  exit 1
+fi
+command -v brew >/dev/null || { echo 'Run ./bootstrap.command first.' >&2; exit 1; }
+if [ -L "$ORBIT_ROOT/.state" ] || [ -L "$ORBIT_ROOT/.state/backups" ]; then
+  echo 'Refusing to write through a symbolic link in .state/backups; inspect the local state path first.' >&2
+  exit 1
+fi
+mkdir -p "$ORBIT_ROOT/.state"
+
+lock_root="$ORBIT_ROOT/.state/provision.lock"
+lock_owned=0
+release_lock() {
+  if [ "$lock_owned" -eq 1 ]; then
+    rm -f "$lock_root/pid"
+    rmdir "$lock_root" 2>/dev/null || true
+  fi
+}
+if [ "${DEV_MACHINE_SETUP_CONTEXT:-}" = full ]; then
+  lock_pid=''
+  if [ -r "$lock_root/pid" ]; then lock_pid=$(cat "$lock_root/pid"); fi
+  if [ -z "$lock_pid" ] || ! kill -0 "$lock_pid" 2>/dev/null; then
+    echo 'Full setup context has no active provisioning lock; refusing to apply without serialization.' >&2
+    exit 1
+  fi
+elif ! mkdir "$lock_root" 2>/dev/null; then
+  lock_pid=''
+  if [ -r "$lock_root/pid" ]; then lock_pid=$(cat "$lock_root/pid"); fi
+  if [ -n "$lock_pid" ] && kill -0 "$lock_pid" 2>/dev/null; then
+    echo "Another setup/apply run is active (pid $lock_pid); no changes were made." >&2
+  else
+    echo 'A stale provisioning lock exists. Run ./setup to inspect and recover it before applying.' >&2
+  fi
+  exit 1
+else
+  lock_owned=1
+  trap release_lock EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  printf '%s\n' "$$" > "$lock_root/pid"
+fi
+
+mkdir -p "$ORBIT_ROOT/.state/backups"
+chmod 700 "$ORBIT_ROOT/.state/backups"
+if [ ! -w "$ORBIT_ROOT/.state/backups" ]; then
+  echo 'The local backup directory is not writable; no packages or settings were changed.' >&2
+  exit 1
+fi
+
+"$ORBIT_ROOT/scripts/profiles" --select "$@"
+brew bundle install --file="$ORBIT_ROOT/Brewfile" --no-upgrade
+"$ORBIT_ROOT/scripts/profiles" --install
+mkdir -p "$ORBIT_ROOT/.state/mise"
+MISE_CONFIG_DIR="$ORBIT_ROOT/.state/mise" mise trust "$ORBIT_ROOT/config/mise.toml"
+MISE_CONFIG_DIR="$ORBIT_ROOT/.state/mise" mise install --locked --cd "$ORBIT_ROOT/config"
+rustup toolchain install stable --profile default --component rust-analyzer --component llvm-tools-preview
+rustup target add --toolchain stable wasm32-wasip2
+uv python install "$(cat "$ORBIT_ROOT/templates/python/.python-version")"
+"$ORBIT_ROOT/scripts/prepare-environments"
+"$ORBIT_ROOT/scripts/configure"
+uv sync --locked --project "$ORBIT_ROOT/templates/python"
+"$ORBIT_ROOT/scripts/rust-tools"
+for project in templates/typescript templates/go; do
+  MISE_CONFIG_DIR="$ORBIT_ROOT/.state/mise" mise trust "$ORBIT_ROOT/$project/mise.toml"
+  MISE_CONFIG_DIR="$ORBIT_ROOT/.state/mise" mise install --locked --cd "$ORBIT_ROOT/$project"
+done
+MISE_CONFIG_DIR="$ORBIT_ROOT/.state/mise" mise exec --cd "$ORBIT_ROOT/templates/typescript" -- pnpm install --frozen-lockfile
+code=/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code
+if [ ! -x "$code" ]; then code="$HOME/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"; fi
+installed_extensions=$("$code" --list-extensions)
+while IFS= read -r extension; do
+  if ! printf '%s\n' "$installed_extensions" | grep -Fxiq "$extension"; then
+    "$code" --install-extension "$extension"
+  fi
+done < "$ORBIT_ROOT/config/extensions.txt"
+color_reset=''
+color_indigo=''
+color_mint=''
+color_amber=''
+if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
+  color_reset=$'\033[0m'
+  color_indigo=$'\033[38;2;180;190;254m'
+  color_mint=$'\033[38;2;148;226;213m'
+  color_amber=$'\033[38;2;249;226;175m'
+fi
+
+printf '\n%sORBIT%s / BASE SETUP\n' "$color_indigo" "$color_reset"
+printf '  %sAPPLIED%s · Base tools, runtimes, and locked environments are in place.\n' \
+  "$color_mint" "$color_reset"
+if [ "${DEV_MACHINE_SETUP_CONTEXT:-}" = full ]; then
+  printf '  %sCONTINUE%s · Full setup will start container services and run repository checks.\n' \
+    "$color_amber" "$color_reset"
+else
+  printf '  %sNEXT%s · ./scripts/services\n' "$color_amber" "$color_reset"
+  printf '  %sTHEN%s · ./scripts/doctor\n' "$color_amber" "$color_reset"
+
+
+fi

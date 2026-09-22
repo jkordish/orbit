@@ -1,0 +1,75 @@
+#!/bin/bash
+set -uo pipefail
+
+if [ "$#" -gt 1 ]; then
+  printf 'Usage: %s [repository-path]\n' "$0" >&2
+  exit 2
+fi
+
+repository=${1:-$(cd "$(dirname "$0")/.." && pwd)}
+
+emit_status() {
+  printf '%s\t%s\t%s\n' "$1" "$2" "$3"
+}
+
+if ! git -C "$repository" rev-parse --show-toplevel >/dev/null 2>&1; then
+  emit_status 'NOT REPOSITORY' 'Git checkout unavailable' ''
+  exit 0
+fi
+
+if ! changes=$(git -C "$repository" status --porcelain --untracked-files=all \
+  --ignore-submodules=none 2>/dev/null); then
+  emit_status 'UNAVAILABLE' 'Git status unavailable' 'Inspect this Git checkout manually.'
+  exit 0
+fi
+
+branch=$(git -C "$repository" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+if [ -n "$changes" ]; then
+  path_count=0
+  while IFS= read -r _; do path_count=$((path_count + 1)); done <<< "$changes"
+  emit_status 'DIRTY' "$path_count local paths" \
+    "Review and preserve local changes before running './scripts/sync'."
+  exit 0
+fi
+
+if [ -z "$branch" ]; then
+  emit_status 'DETACHED' 'detached HEAD' \
+    "Run './scripts/sync' to safely return to main; the current commit is preserved."
+  exit 0
+fi
+
+if [ "$branch" != main ]; then
+  emit_status 'OFF MAIN' "branch $branch" \
+    "Run './scripts/sync' to safely switch this clean checkout to main."
+  exit 0
+fi
+
+if ! git -C "$repository" rev-parse --verify --quiet \
+  'refs/remotes/origin/main^{commit}' >/dev/null; then
+  emit_status 'NO REMOTE REF' 'origin/main unavailable' \
+    "Run './scripts/sync' to safely fetch and inspect origin/main."
+  exit 0
+fi
+
+if ! counts=$(git -C "$repository" rev-list --left-right --count \
+  'HEAD...refs/remotes/origin/main' 2>/dev/null); then
+  emit_status 'UNAVAILABLE' 'Git history unavailable' \
+    'Inspect local and origin/main history manually before syncing.'
+  exit 0
+fi
+
+read -r ahead behind <<< "$counts"
+if [ "$ahead" -eq 0 ] && [ "$behind" -eq 0 ]; then
+  emit_status 'SYNCED' 'main = origin/main' ''
+elif [ "$ahead" -eq 0 ]; then
+  if [ "$behind" -eq 1 ]; then commits='commit'; else commits='commits'; fi
+  emit_status 'BEHIND' "$behind $commits behind" \
+    "Run './scripts/sync' to safely fast-forward main."
+elif [ "$behind" -eq 0 ]; then
+  if [ "$ahead" -eq 1 ]; then commits='local commit'; else commits='local commits'; fi
+  emit_status 'AHEAD' "$ahead $commits" \
+    "Review local commits before syncing; './scripts/sync' never publishes commits."
+else
+  emit_status 'DIVERGED' "$ahead ahead, $behind behind" \
+    'Review local and remote commits before reconciling this branch.'
+fi

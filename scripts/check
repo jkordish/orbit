@@ -1,0 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+cd "$ORBIT_ROOT"
+shell_scripts=(bootstrap.command setup scripts/apply scripts/configure scripts/doctor scripts/recovery scripts/repository-status scripts/sync scripts/check scripts/services scripts/docker-start scripts/container-check scripts/update scripts/macos-defaults scripts/env.sh scripts/prepare-environments scripts/rust-tools scripts/profiles scripts/new-project scripts/orbit scripts/projects)
+for script in "${shell_scripts[@]}"; do bash -n "$script"; done
+shellcheck -x "${shell_scripts[@]}"
+zsh -n config/shell.zsh
+uv run --locked --project templates/python ruff check templates/python scripts/configure.py scripts/rust-tools.py scripts/test-ai-ignore.py scripts/test-starship-trust.py scripts/test-repository-status.py scripts/new_project.py scripts/test-new-project.py scripts/test-recovery.py
+uv run --locked --project templates/python mypy templates/python
+uv run --locked --project templates/python pytest -q templates/python
+uv run --locked --project templates/python python scripts/test-configure.py
+uv run --locked --project templates/python python scripts/test-relocation.py
+uv run --locked --project templates/python python scripts/test-profiles.py
+uv run --locked --project templates/python python scripts/test-sync.py
+uv run --locked --project templates/python python scripts/test-repository-status.py
+uv run --locked --project templates/python python scripts/test-ai-ignore.py
+uv run --locked --project templates/python python scripts/test-starship-trust.py
+uv run --locked --project templates/python python scripts/test-new-project.py
+uv run --locked --project templates/python python scripts/test-recovery.py
+mise exec --cd templates/typescript -- pnpm install --frozen-lockfile
+mise exec --cd templates/typescript -- pnpm check
+mise exec --cd templates/typescript -- pnpm test
+mise exec --cd templates/go -- go test ./...
+mise exec --cd templates/go -- go vet ./...
+(cd templates/rust && cargo test --locked && cargo clippy --locked --all-targets -- -D warnings && cargo fmt --check)
+echo 'All configuration and language checks passed.'

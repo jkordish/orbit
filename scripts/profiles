@@ -1,0 +1,91 @@
+#!/bin/bash
+# Validate profile choices before installing packages or writing configuration.
+set -euo pipefail
+root=$(cd "$(dirname "$0")/.." && pwd -P)
+mode=${1:---list}
+if [ "$#" -gt 0 ]; then shift; fi
+config_file="$root/config/profiles.txt"
+state_root="$root/.state"
+state_file="$state_root/profiles.txt"
+usage() { echo 'Usage: scripts/profiles [--list|--validate|--select|--install|--check|--update] [--profile NAME ...]' >&2; }
+valid() {
+  case "$1" in
+    cloud|infra|wasm|editors|autocomplete|java) return 0 ;;
+    *) echo "Unknown profile: $1" >&2; return 2 ;;
+  esac
+}
+validate_file() {
+  local file=$1 name
+  [ -f "$file" ] || return 0
+  while IFS= read -r name || [ -n "$name" ]; do
+    case "$name" in ''|\#*) continue ;; esac
+    valid "$name"
+  done < "$file"
+}
+selected() {
+  local name=$1 file
+  for file in "$config_file" "$state_file"; do
+    [ -f "$file" ] && grep -Fxq "$name" "$file" && return 0
+  done
+  return 1
+}
+validate_file "$config_file"
+validate_file "$state_file"
+requested=()
+while [ "$#" -gt 0 ]; do
+  if [ "$1" != --profile ] || [ "$#" -lt 2 ]; then usage; exit 2; fi
+  valid "$2"
+  requested+=("$2")
+  shift 2
+done
+case "$mode" in
+  --validate) exit 0 ;;
+  --select)
+    [ "${#requested[@]}" -gt 0 ] || exit 0
+    if [ -L "$state_root" ] || [ -L "$state_root/backups" ] || [ -L "$state_file" ]; then
+      echo 'Refusing to write profile state through a symbolic link under .state.' >&2
+      exit 1
+    fi
+    mkdir -p "$state_root"
+    for name in "${requested[@]}"; do
+      if ! selected "$name"; then printf '%s\n' "$name" >> "$state_file"; fi
+    done
+    exit 0 ;;
+  --list)
+    printf 'Available: autocomplete cloud editors infra java wasm\nEnabled:\n'
+    for file in "$config_file" "$state_file"; do
+      [ -f "$file" ] || continue
+      while IFS= read -r name || [ -n "$name" ]; do
+        case "$name" in ''|\#*) continue ;; esac
+        printf '%s\n' "$name"
+      done < "$file"
+    done
+    exit 0 ;;
+  --install|--check|--update) ;;
+  *) usage; exit 2 ;;
+esac
+
+install_profile() {
+  local name=$1
+  if [ "$mode" = --install ] || [ "$mode" = --update ]; then
+    if brew help trust >/dev/null 2>&1; then
+      case "$name" in
+        cloud) brew trust --formula aws/tap/ec2-metadata-mock aws/tap/eks-node-viewer nklmilojevic/sofka/sofka ;;
+        infra) brew trust --cask terraform-linters/tap/tflint ;;
+        wasm) brew trust --formula spinframework/tap/spin wasmcloud/wasmcloud/wash ;;
+      esac
+    fi
+  fi
+  case "$mode" in
+    --install) brew bundle install --file="$root/profiles/$name.Brewfile" --no-upgrade ;;
+    --update) brew bundle install --file="$root/profiles/$name.Brewfile" ;;
+    --check) brew bundle check --file="$root/profiles/$name.Brewfile" ;;
+  esac
+}
+for file in "$config_file" "$state_file"; do
+  [ -f "$file" ] || continue
+  while IFS= read -r name || [ -n "$name" ]; do
+    case "$name" in ''|\#*) continue ;; esac
+    install_profile "$name"
+  done < "$file"
+done

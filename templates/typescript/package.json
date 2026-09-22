@@ -1,0 +1,17 @@
+{
+  "name": "typescript-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.3.4",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "start": "tsx src/main.ts",
+    "test": "tsx --test src/main.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  }
+}

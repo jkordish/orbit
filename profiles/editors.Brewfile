@@ -1,0 +1,7 @@
+brew "helix"
+brew "bash-language-server"
+brew "lua-language-server"
+brew "typescript-language-server"
+brew "vscode-langservers-extracted"
+brew "yaml-language-server"
+brew "tree-sitter-cli"

@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+cd "$ORBIT_ROOT"
+if [ "$#" -gt 0 ]; then
+  printf 'Usage: scripts/update\n' >&2
+  exit 2
+fi
+
+# Dependency updates rewrite lockfiles. Refuse to mix that work with an existing
+# checkout so the resulting diff remains attributable and user changes stay put.
+if ! working_tree=$(git status --porcelain --untracked-files=all --ignore-submodules=none 2>&1); then
+  printf 'HOLD · Git could not inspect this checkout; no update was attempted.\n' >&2
+  printf '%s\n' "$working_tree" >&2
+  exit 1
+fi
+if [ -n "$working_tree" ]; then
+  printf 'HOLD · The working tree is not clean; no update was attempted.\n' >&2
+  printf '%s\n' "$working_tree" >&2
+  printf 'NEXT · preserve or commit those changes, then run scripts/update again.\n' >&2
+  exit 1
+fi
+
+printf 'ORBIT / DEPENDENCY UPDATE\n'
+printf '  Starting from a clean checkout; lockfile and package changes will remain for review.\n'
+unset HOMEBREW_NO_AUTO_UPDATE HOMEBREW_BUNDLE_NO_UPGRADE
+./scripts/profiles --validate
+brew update
+brew bundle install --file=Brewfile
+./scripts/profiles --update
+uv lock --upgrade --project templates/python
+uv sync --locked --project templates/python
+mise exec --cd templates/typescript -- pnpm update --latest
+./scripts/check
+./scripts/doctor
+echo 'Review git diff and commit the dependency changes. Runtime pins remain unchanged.'

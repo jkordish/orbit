@@ -1,0 +1,150 @@
+#!/bin/bash
+set -euo pipefail
+ORBIT_ROOT=$(cd "$(dirname "$0")" && pwd -P)
+cd "$ORBIT_ROOT"
+
+usage() {
+  cat <<'EOF'
+Usage: ./setup [--resume] [--profile NAME]...
+
+Provision the complete managed Apple Silicon workstation:
+Homebrew, profiles, locked runtimes, user configuration, services, a pinned
+container smoke check, repository checks, and a final readiness report.
+
+The flow is safe to rerun. Existing user data is preserved, package managers
+are asked to install without upgrading, and the setup lock prevents concurrent
+runs from racing over the same checkout or machine configuration. If a run
+stops, --resume continues from the recorded phase.
+
+Profiles: cloud infra wasm editors autocomplete java
+EOF
+}
+
+resume_requested=0
+setup_args=()
+for argument in "$@"; do
+  if [ "$argument" = --help ]; then
+    usage
+    exit 0
+  elif [ "$argument" = --resume ]; then
+    resume_requested=1
+  else
+    setup_args+=("$argument")
+  fi
+done
+
+# Validate all arguments before creating state or touching the machine.
+if [ "${#setup_args[@]}" -gt 0 ]; then
+  ./scripts/profiles --validate "${setup_args[@]}"
+else
+  ./scripts/profiles --validate
+fi
+
+state_root="$ORBIT_ROOT/.state"
+lock_root="$state_root/provision.lock"
+state_file="$state_root/provision-state"
+mkdir -p "$state_root"
+
+resume_phase=''
+if [ "$resume_requested" -eq 1 ]; then
+  if [ ! -r "$state_file" ]; then
+    printf 'HOLD · no previous provisioning phase is recorded; run ./setup once first.\n' >&2
+    exit 1
+  fi
+  resume_phase=$(sed -n 's/^phase=//p' "$state_file" | head -n 1)
+  if [ "$resume_phase" = preflight ]; then resume_phase=bootstrap; fi
+  case "$resume_phase" in
+    bootstrap|apply|preferences|services|container-smoke|repository-check|readiness) ;;
+    complete)
+      printf 'READY · the last setup run is already complete; use ./setup to reconcile from the beginning.\n'
+      exit 0
+      ;;
+    *)
+      printf 'HOLD · provision state has no resumable phase: %s\n' "${resume_phase:-unknown}" >&2
+      exit 1
+      ;;
+  esac
+fi
+
+acquire_lock() {
+  if mkdir "$lock_root" 2>/dev/null; then
+    printf '%s\n' "$$" > "$lock_root/pid"
+    return 0
+  fi
+
+  lock_pid=''
+  if [ -r "$lock_root/pid" ]; then lock_pid=$(cat "$lock_root/pid"); fi
+  if [ -z "$lock_pid" ]; then
+    printf 'HOLD · another setup run is establishing its lock. Try again shortly.\n' >&2
+    exit 1
+  fi
+  if [ -n "$lock_pid" ] && kill -0 "$lock_pid" 2>/dev/null; then
+    printf 'HOLD · another setup run is active (pid %s).\n' "$lock_pid" >&2
+    exit 1
+  fi
+
+  printf 'RECOVER · removing stale setup lock%s.\n' \
+    "${lock_pid:+ from pid $lock_pid}" >&2
+  rm -rf "$lock_root"
+  mkdir "$lock_root"
+  printf '%s\n' "$$" > "$lock_root/pid"
+}
+
+acquire_lock
+cleanup() { rm -rf "$lock_root"; }
+trap cleanup EXIT
+
+started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+phase='preflight'
+resuming=0
+write_state() {
+  local next="$state_file.tmp.$$"
+  {
+    printf 'phase=%s\n' "$phase"
+    printf 'started_at=%s\n' "$started_at"
+    printf 'updated_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$next"
+  mv "$next" "$state_file"
+}
+
+run_phase() {
+  phase=$1
+  shift
+  if [ "$resume_requested" -eq 1 ] && [ "$resuming" -eq 0 ]; then
+    if [ "$phase" != "$resume_phase" ]; then
+      printf '  SKIP · %s (resume starts at %s)\n' "$phase" "$resume_phase"
+      return 0
+    fi
+    resuming=1
+  fi
+  write_state
+  phase_label=$(printf '%s' "$phase" | tr '[:lower:]' '[:upper:]')
+  printf '\nORBIT / %s\n' "$phase_label"
+  if "$@"; then
+    printf '  DONE · %s\n' "$phase"
+    return 0
+  fi
+  status=$?
+  write_state
+  printf '  HOLD · %s failed (exit %s). Rerun ./setup after resolving it; completed phases are safe to repeat.\n' \
+    "$phase" "$status" >&2
+  exit "$status"
+}
+
+write_state
+run_phase bootstrap ./bootstrap.command
+if [ "${#setup_args[@]}" -gt 0 ]; then
+  run_phase apply env DEV_MACHINE_SETUP_CONTEXT=full ./scripts/apply "${setup_args[@]}"
+else
+  run_phase apply env DEV_MACHINE_SETUP_CONTEXT=full ./scripts/apply
+fi
+run_phase preferences ./scripts/macos-defaults
+run_phase services ./scripts/services
+run_phase container-smoke ./scripts/container-check
+run_phase repository-check ./scripts/check
+run_phase readiness ./scripts/doctor
+
+phase='complete'
+write_state
+printf '\nORBIT / PROVISIONING COMPLETE\n'
+printf '  READY · setup is repeat-safe; the last run completed every phase.\n'

@@ -1,0 +1,95 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+usage() {
+  cat <<'HELP'
+Usage:
+  scripts/services [--docker]
+  scripts/services status
+  scripts/services disable {container|colima|optional}
+  scripts/services enable {container|colima}
+  scripts/services sleep
+  scripts/services wake {container|colima}
+
+The default command starts Apple's container service. Colima is optional.
+Stop actions refuse to stop a runtime with active workloads and never remove
+images, volumes, or other user data.
+HELP
+}
+has() { command -v "$1" >/dev/null 2>&1; }
+container_running() { has container && container system status 2>/dev/null | grep -Eq '^status[[:space:]]+running'; }
+container_workloads() { container list 2>/dev/null | awk 'NR > 1 && NF { count += 1 } END { print count + 0 }'; }
+colima_running() { has colima && colima status >/dev/null 2>&1; }
+colima_workloads() { docker --context colima ps -q 2>/dev/null | awk 'NF { count += 1 } END { print count + 0 }'; }
+show_status() {
+  local container_state='stopped' colima_state='stopped'
+  if container_running; then container_state='running'; fi
+  if colima_running; then colima_state='running'; fi
+  printf 'ORBIT / SERVICES\n  Read-only status; no service state changed.\n\n'
+  printf '  %-18s %s\n' "Apple container" "$container_state"
+  printf '  %-18s %s\n' "Colima" "$colima_state"
+}
+disable_container() {
+  local workloads
+  if ! container_running; then printf '  READY · Apple container is already stopped.\n'; return 0; fi
+  workloads=$(container_workloads)
+  if [ "${workloads:-0}" -gt 0 ]; then
+    printf '  HOLD · Apple container has %s workload(s); stop them before disabling it.\n' "$workloads" >&2
+    return 1
+  fi
+  container system stop >/dev/null
+  printf '  SLEEP · Apple container stopped; images and volumes remain.\n'
+}
+disable_colima() {
+  local workloads
+  if ! colima_running; then printf '  READY · Colima is already stopped.\n'; return 0; fi
+  workloads=$(colima_workloads)
+  if [ "${workloads:-0}" -gt 0 ]; then
+    printf '  HOLD · Colima has %s running Docker workload(s); stop them before disabling it.\n' "$workloads" >&2
+    return 1
+  fi
+  colima stop >/dev/null
+  printf '  SLEEP · Colima stopped; Docker data remains.\n'
+}
+disable_service() {
+  case "$1" in
+    container) disable_container ;;
+    colima) disable_colima ;;
+    optional|all)
+      local failed=0
+      disable_container || failed=1
+      disable_colima || failed=1
+      return "$failed" ;;
+    *) usage >&2; exit 2 ;;
+  esac
+}
+enable_service() {
+  case "$1" in
+    container)
+      has container || { printf '  HOLD · Apple container is unavailable.\n' >&2; return 1; }
+      container system start --enable-kernel-install >/dev/null
+      printf '  WAKE · Apple container started.\n' ;;
+    colima) "$ORBIT_ROOT/scripts/docker-start" ;;
+    *) usage >&2; exit 2 ;;
+  esac
+}
+run_default_services() {
+  has container || { printf 'Apple container CLI is unavailable. Run ./scripts/apply first.\n' >&2; return 1; }
+  container system start --enable-kernel-install
+  container list >/dev/null
+  if [ "${1:-}" = --docker ]; then "$ORBIT_ROOT/scripts/docker-start"; fi
+  printf 'Apple container is ready. Colima remains stopped unless explicitly started.\n'
+}
+if [ "$#" -eq 0 ] || [ "${1:-}" = --docker ]; then
+  run_default_services "${1:-}"
+  exit 0
+fi
+command=$1
+shift
+case "$command" in
+  status) [ "$#" -eq 0 ] || { usage >&2; exit 2; }; show_status ;;
+  disable|sleep) [ "$#" -le 1 ] || { usage >&2; exit 2; }; disable_service "${1:-optional}" ;;
+  enable|wake) [ "$#" -eq 1 ] || { usage >&2; exit 2; }; enable_service "$1" ;;
+  --help|-h) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

@@ -1,0 +1,173 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/sync [--help]
+
+Safely switch this clean checkout to main and fast-forward it to origin/main.
+Local changes and commits are preserved; this command never publishes commits.
+EOF
+}
+
+if [ "$#" -gt 1 ] || { [ "$#" -eq 1 ] && [ "$1" != --help ]; }; then
+  usage >&2
+  exit 2
+fi
+if [ "${1:-}" = --help ]; then
+  usage
+  exit 0
+fi
+
+color_reset=''
+color_indigo=''
+color_mint=''
+color_amber=''
+color_rose=''
+if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
+  color_reset=$'\033[0m'
+  color_indigo=$'\033[38;2;180;190;254m'
+  color_mint=$'\033[38;2;148;226;213m'
+  color_amber=$'\033[38;2;249;226;175m'
+  color_rose=$'\033[38;2;243;139;168m'
+fi
+
+printf '%sORBIT%s / REPOSITORY SYNC\n' "$color_indigo" "$color_reset"
+
+git_run() {
+  git -C "$ORBIT_ROOT" "$@"
+}
+
+hold() {
+  printf '  %sHOLD%s · %s\n' "$color_rose" "$color_reset" "$1" >&2
+}
+
+if ! git_root=$(git_run rev-parse --show-toplevel 2>/dev/null); then
+  hold "This directory is not a Git working tree."
+  exit 1
+fi
+if [ "$git_root" != "$ORBIT_ROOT" ]; then
+  hold "Run scripts/sync from the orbit repository root."
+  exit 1
+fi
+if ! git_run remote get-url origin >/dev/null 2>&1; then
+  hold "No remote named origin is configured; no files or refs were changed."
+  exit 1
+fi
+
+if ! worktree_status=$(git_run status --porcelain --untracked-files=all --ignore-submodules=none 2>&1); then
+  hold "Git could not inspect this working tree; no checkout action was attempted."
+  printf '%s\n' "$worktree_status" >&2
+  exit 1
+fi
+if [ -n "$worktree_status" ]; then
+  hold "The working tree is not clean; nothing was fetched or changed."
+  while IFS= read -r status_line; do
+    printf '    %s\n' "$status_line" >&2
+  done <<< "$worktree_status"
+  printf '  NEXT · preserve or resolve those changes, then run scripts/sync again.\n' >&2
+  exit 1
+fi
+
+current_branch=$(git_run symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+if ! current_head=$(git_run rev-parse --verify 'HEAD^{commit}' 2>/dev/null); then
+  hold "This checkout has no commit at HEAD; create or clone a committed repository first."
+  exit 1
+fi
+
+if [ "$current_branch" = main ] && ! git_run show-ref --verify --quiet refs/heads/main; then
+  hold "The current main branch has no commit; no branch or file was changed."
+  exit 1
+fi
+
+if ! fetch_output=$(GIT_TERMINAL_PROMPT=0 git_run fetch --no-tags origin refs/heads/main:refs/remotes/origin/main 2>&1); then
+  hold "Could not update origin/main safely; no local commit or checkout was overwritten."
+  printf '%s\n' "$fetch_output" >&2
+  printf '  NEXT · check GitHub access and remote history, then retry.\n' >&2
+  exit 1
+fi
+if [ -n "$fetch_output" ]; then printf '%s\n' "$fetch_output"; fi
+
+if ! remote_main=$(git_run rev-parse --verify 'refs/remotes/origin/main^{commit}' 2>/dev/null); then
+  hold "origin/main is unavailable; no branch switch was attempted."
+  exit 1
+fi
+
+local_main_exists=0
+local_main=''
+if git_run show-ref --verify --quiet refs/heads/main; then
+  local_main_exists=1
+  local_main=$(git_run rev-parse --verify 'refs/heads/main^{commit}')
+  if ! git_run merge-base --is-ancestor "$local_main" "$remote_main"; then
+    ahead=$(git_run rev-list --count "$remote_main..$local_main")
+    behind=$(git_run rev-list --count "$local_main..$remote_main")
+    hold "Local main has commits GitHub does not; it cannot be fast-forwarded safely."
+    printf '    local-only commits: %s · remote-only commits: %s\n' "$ahead" "$behind" >&2
+    printf '    local main:  %s\n    origin/main: %s\n' \
+      "${local_main:0:12}" "${remote_main:0:12}" >&2
+    printf '  NEXT · review the local commits; scripts/sync never pushes or rewrites them.\n' >&2
+    exit 1
+  fi
+fi
+
+preserved_ref=''
+if [ -z "$current_branch" ]; then
+  rescue_stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  preserved_ref="rescue/orbit-detached-$rescue_stamp"
+  rescue_suffix=1
+  while git_run show-ref --verify --quiet "refs/heads/$preserved_ref"; do
+    preserved_ref="rescue/orbit-detached-$rescue_stamp-$rescue_suffix"
+    rescue_suffix=$((rescue_suffix + 1))
+  done
+  if ! rescue_output=$(git_run branch "$preserved_ref" "$current_head" 2>&1); then
+    hold "Could not preserve detached HEAD in a rescue branch; checkout was not changed."
+    printf '%s\n' "$rescue_output" >&2
+    exit 1
+  fi
+elif [ "$current_branch" != main ]; then
+  preserved_ref=$current_branch
+fi
+
+if [ "$current_branch" != main ]; then
+  if [ "$local_main_exists" -eq 0 ]; then
+    if ! switch_output=$(git_run checkout --no-overwrite-ignore --track -b main \
+      refs/remotes/origin/main 2>&1); then
+      hold "Git could not create main; current branch and commits remain available."
+      printf '%s\n' "$switch_output" >&2
+      exit 1
+    fi
+  else
+    if ! switch_output=$(git_run checkout --no-overwrite-ignore main 2>&1); then
+      hold "Git could not switch to main; no forced checkout was attempted."
+      printf '%s\n' "$switch_output" >&2
+      exit 1
+    fi
+  fi
+fi
+
+if ! merge_output=$(git_run merge --ff-only --no-overwrite-ignore "$remote_main" 2>&1); then
+  hold "Git could not fast-forward main; no reset or cleanup was attempted."
+  printf '%s\n' "$merge_output" >&2
+  exit 1
+fi
+
+final_branch=$(git_run branch --show-current)
+final_head=$(git_run rev-parse --verify 'HEAD^{commit}')
+final_remote=$(git_run rev-parse --verify 'refs/remotes/origin/main^{commit}')
+final_status=$(git_run status --porcelain --untracked-files=all --ignore-submodules=none)
+if [ "$final_branch" != main ] || [ "$final_head" != "$final_remote" ] || [ -n "$final_status" ]; then
+  hold "Post-sync verification did not reach a clean main at origin/main."
+  printf '    branch: %s · HEAD: %s · origin/main: %s\n' \
+    "$final_branch" "${final_head:0:12}" "${final_remote:0:12}" >&2
+  if [ -n "$final_status" ]; then printf '%s\n' "$final_status" >&2; fi
+  exit 1
+fi
+
+if [ -n "$merge_output" ]; then printf '%s\n' "$merge_output"; fi
+printf '  %sREADY%s · main @ %s\n' "$color_mint" "$color_reset" "${final_head:0:12}"
+if [ -n "$preserved_ref" ]; then
+  printf '  %sPRESERVED%s · %s @ %s\n' \
+    "$color_amber" "$color_reset" "$preserved_ref" "${current_head:0:12}"
+fi
+printf '  NEXT · push reviewed commits separately; this command never publishes.\n'

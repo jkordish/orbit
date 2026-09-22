@@ -1,0 +1,14 @@
+[project]
+name = "python-starter"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[dependency-groups]
+dev = ["ruff", "mypy", "pytest"]
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

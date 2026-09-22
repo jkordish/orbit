@@ -1,0 +1,52 @@
+# Repository guidance
+
+## Purpose and boundaries
+
+This repository provisions a general Apple Silicon macOS developer workstation.
+Keep defaults project-agnostic; do not add application-specific project setup.
+Read README.md for user instructions and docs/verification.md for verification
+scope.
+
+## Preserve machine state
+
+- Treat .state/, its backups, installed environments, and ignored files as
+  local user data. Never clear them during routine development.
+- Do not use git clean, hard resets, forced checkouts, or remove branches or
+  worktrees to make a checkout look tidy. Preserve existing work.
+- Use ./scripts/sync to return the primary checkout to main. It fast-forwards
+  only, refuses unsafe states, and never publishes commits.
+- ./scripts/recovery is observational: it reports backup names, sizes, and
+  filename-based destination hints but never reads contents, restores, or
+  removes anything. Treat ambiguous or unknown targets as manual-review items.
+
+## Tool ownership
+
+- Homebrew owns macOS applications and system packages listed in Brewfiles.
+- mise owns the pinned Node.js, Go, and pnpm versions; uv owns Python
+  environments; rustup owns the stable Rust toolchain.
+- Project dependencies stay owned by each project and its lockfiles.
+- Preserve lockfiles and pinned versions. Update related manifests and locks
+  together when a version change is part of the task.
+
+## Command effects
+
+- scripts/doctor checks readiness without installing, synchronizing, or
+  starting tools.
+- scripts/services starts or inspects container services; stop actions check
+  for active workloads and do not delete user data.
+- scripts/apply installs and configures packages, runtimes, editor extensions,
+  and selected profiles.
+- setup runs the full provisioning flow, including macOS defaults and a
+  pinned container smoke check.
+- scripts/check validates shell, configuration, Python, TypeScript, Go, and
+  Rust without applying workstation Brewfiles or starting services.
+- scripts/projects only inventories project manifest filenames under the
+  selected source directory; it does not execute project code.
+
+## Shared AI guidance
+
+Keep shared AGENTS.md, CLAUDE.md, and editor instructions trackable. Local
+assistant sessions and generated notes are intentionally ignored, including
+.codex/, .claude/, .superpowers/, and docs/superpowers/. Never add those local
+artifacts to commits. templates/common/AGENTS.md is copied into new starter
+projects; keep it aligned with the starter workflow when changing it.

@@ -1,0 +1,194 @@
+#!/bin/bash
+set -uo pipefail
+source "$(dirname "$0")/env.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/recovery [--help]
+
+Show disk usage and filename-based target hints for preserved setup backups.
+Hints are not verified against contents. The report never restores or removes anything.
+EOF
+}
+
+if [ "$#" -gt 1 ] || { [ "$#" -eq 1 ] && [ "$1" != --help ]; }; then
+  usage >&2
+  exit 2
+fi
+if [ "${1:-}" = --help ]; then
+  usage
+  exit 0
+fi
+
+state_root="$ORBIT_ROOT/.state"
+backup_root="$state_root/backups"
+inventory_failed=0
+
+format_kib() {
+  awk -v kib="$1" 'BEGIN {
+    if (kib >= 1048576) printf "%.1f GiB", kib / 1048576
+    else if (kib >= 1024) printf "%.1f MiB", kib / 1024
+    else printf "%d KiB", kib
+  }'
+}
+
+describe_file_target() {
+  local snapshot_name=$1
+
+  case "$snapshot_name" in
+    config.json.*)
+      printf '             Target hint: ~/.docker/config.json; review local credentials before restoring.\n'
+      ;;
+    config.ghostty.*)
+      printf '             Target hint: ~/Library/Application Support/com.mitchellh.ghostty/config.ghostty.\n'
+      ;;
+    finder.*.plist)
+      printf '             Target hint: macOS Finder defaults (com.apple.finder).\n'
+      ;;
+    global.*.plist)
+      printf '             Target hint: macOS global defaults (NSGlobalDomain).\n'
+      ;;
+    desktopservices.*.plist)
+      printf '             Target hint: macOS desktop-services defaults (com.apple.desktopservices).\n'
+      ;;
+    ghostty.conf.*)
+      printf '             Target hint: ~/.config/orbit/ghostty.conf.\n'
+      ;;
+    shell.zsh.*)
+      printf '             Target hint: ~/.config/orbit/shell.zsh.\n'
+      ;;
+    enabled-profiles.*)
+      printf '             Target hint: ~/.config/orbit/enabled-profiles.\n'
+      ;;
+    orbit-root.*)
+      printf '             Target hint: ~/.config/orbit/root.\n'
+      ;;
+    profiles.txt.*)
+      printf '             Target hint: repository config/profiles.txt.\n'
+      ;;
+    ssh.config.*)
+      printf '             Target hint: ~/.config/orbit/ssh.config.\n'
+      ;;
+    ssh-config.*)
+      printf '             Target hint: ~/.ssh/config.\n'
+      ;;
+    starship.toml.*)
+      printf '             Target hint: ~/.config/starship.toml.\n'
+      ;;
+    zprofile.*)
+      printf '             Target hint: ~/.zprofile.\n'
+      ;;
+    zshrc.*)
+      printf '             Target hint: ~/.zshrc.\n'
+      ;;
+    cargo-tools)
+      printf '             Target hint: previous Cargo-installed executables under ~/.cargo/bin.\n'
+      ;;
+    gitconfig.*)
+      printf '             Target is ambiguous: ~/.gitconfig or ~/.config/orbit/gitconfig.\n'
+      ;;
+    *)
+      printf '             Destination not inferred; inspect before restoring.\n'
+      ;;
+  esac
+}
+
+color_reset=''
+color_indigo=''
+color_mint=''
+color_amber=''
+if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
+  color_reset=$'\033[0m'
+  color_indigo=$'\033[38;2;180;190;254m'
+  color_mint=$'\033[38;2;148;226;213m'
+  color_amber=$'\033[38;2;249;226;175m'
+fi
+
+printf '%sORBIT%s / RECOVERY INVENTORY\n' "$color_indigo" "$color_reset"
+printf 'Read-only report. Filename-based target hints are not verified against saved contents.\n'
+printf 'Backup contents are not read or displayed; nothing is restored or removed.\n'
+
+if [ -L "$state_root" ]; then
+  printf '\nCannot inventory %s: the state directory is a symbolic link.\n' \
+    "$state_root" >&2
+  exit 1
+fi
+if [ ! -e "$state_root" ]; then
+  printf '\nNo local setup backups found. Nothing has been changed.\n'
+  exit 0
+fi
+if [ ! -d "$state_root" ] || [ ! -r "$state_root" ] || [ ! -x "$state_root" ]; then
+  printf '\nCannot inventory %s: it is not a readable directory.\n' \
+    "$state_root" >&2
+  exit 1
+fi
+
+if [ -L "$backup_root" ]; then
+  printf '\nCannot inventory %s: the backup directory is a symbolic link.\n' \
+    "$backup_root" >&2
+  exit 1
+fi
+if [ ! -e "$backup_root" ]; then
+  printf '\nNo local setup backups found. Nothing has been changed.\n'
+  exit 0
+fi
+if [ ! -d "$backup_root" ] || [ ! -r "$backup_root" ] || [ ! -x "$backup_root" ]; then
+  printf '\nCannot inventory %s: it is not a readable directory.\n' \
+    "$backup_root" >&2
+  exit 1
+fi
+
+if total_kib=$(du -skP "$backup_root" 2>/dev/null | awk 'NR == 1 { print $1 }') \
+  && [ -n "$total_kib" ] && [[ "$total_kib" != *[!0-9]* ]]; then
+  total_size=$(format_kib "$total_kib")
+else
+  total_size='unavailable'
+  inventory_failed=1
+fi
+
+shopt -s nullglob dotglob
+entries=( "$backup_root"/* )
+printf '\n%sPRESERVED STATE%s\n' "$color_mint" "$color_reset"
+printf '  Total disk use: %s\n' "$total_size"
+
+if [ "${#entries[@]}" -eq 0 ]; then
+  printf '  No saved items.\n'
+else
+  for entry in "${entries[@]}"; do
+    entry_name=${entry##*/}
+    if entry_kib=$(du -skP "$entry" 2>/dev/null | awk 'NR == 1 { print $1 }') \
+      && [ -n "$entry_kib" ] && [[ "$entry_kib" != *[!0-9]* ]]; then
+      entry_size=$(format_kib "$entry_kib")
+    else
+      entry_size='unavailable'
+      inventory_failed=1
+    fi
+    quoted_name=$(printf '%q' "$entry_name")
+    printf '  %-10s %s\n' "$entry_size" "$quoted_name"
+
+    if [ ! -L "$entry" ] && [ -d "$entry" ]; then
+      case "$entry_name" in
+        environments.*)
+          printf '             Generated environment snapshot; lockfiles can rebuild these tools. Original files remain preserved.\n'
+          ;;
+        *)
+          printf '             Directory contents are not inspected; review before restoring.\n'
+          ;;
+      esac
+    elif [ ! -L "$entry" ] && [ -f "$entry" ]; then
+      printf '             Snapshot; contents are not inspected.\n'
+      describe_file_target "$entry_name"
+    else
+      printf '             Unknown item; inspect before restoring.\n'
+      printf '             Destination not inferred; inspect before restoring.\n'
+    fi
+  done
+fi
+
+printf '\n%sNo cleanup or restore action is available in this command.%s\n' \
+  "$color_amber" "$color_reset"
+if [ "$inventory_failed" -ne 0 ]; then
+  printf 'Some disk-usage measurements were unavailable.\n' >&2
+  exit 1
+fi
+exit 0

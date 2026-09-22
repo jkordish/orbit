@@ -1,0 +1,55 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+mkdir -p "$ORBIT_ROOT/.state/backups"
+stamp=$(date +%Y%m%dT%H%M%S)
+backup_root="$ORBIT_ROOT/.state/backups"
+
+backup_if_changed() {
+  local domain=$1
+  local name=$2
+  local temporary="$backup_root/.${name}.snapshot.$$"
+  local candidate
+  local digest
+
+  defaults export "$domain" "$temporary" >/dev/null
+  digest=$(shasum -a 256 "$temporary" | awk '{print $1}')
+  for candidate in "$backup_root/$name".*.plist; do
+    [ -f "$candidate" ] || continue
+    if [ "$(shasum -a 256 "$candidate" | awk '{print $1}')" = "$digest" ]; then
+      rm -f "$temporary"
+      printf 'Unchanged · %s backup already preserved.\n' "$name"
+      return 0
+    fi
+  done
+
+  mv "$temporary" "$backup_root/$name.$stamp.plist"
+  printf 'Preserved · %s defaults snapshot.\n' "$name"
+}
+
+backup_if_changed com.apple.finder finder
+backup_if_changed NSGlobalDomain global
+backup_if_changed com.apple.desktopservices desktopservices
+
+# Keep Finder useful for source trees and make Cocoa text fields less opinionated
+# when entering code, paths, commit messages, or shell commands.
+defaults write NSGlobalDomain AppleShowAllExtensions -bool true
+defaults write NSGlobalDomain AppleShowAllFiles -bool true
+defaults write NSGlobalDomain InitialKeyRepeat -int 15
+defaults write NSGlobalDomain KeyRepeat -int 2
+defaults write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticDashSubstitutionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false
+defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
+defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
+defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
+defaults write com.apple.finder ShowPathbar -bool true
+defaults write com.apple.finder ShowStatusBar -bool true
+defaults write com.apple.finder _FXShowPosixPathInTitle -bool true
+defaults write com.apple.finder FXDefaultSearchScope -string 'SCcf'
+defaults write com.apple.finder FXPreferredViewStyle -string 'Nlsv'
+defaults write com.apple.finder QLEnableTextSelection -bool true
+defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
+defaults write com.apple.desktopservices DSDontWriteUSBStores -bool true
+echo 'Developer-friendly macOS defaults saved; Finder and text-field changes take effect after the relevant apps restart.'

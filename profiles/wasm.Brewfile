@@ -1,0 +1,7 @@
+tap "spinframework/tap"
+tap "wasmcloud/wasmcloud"
+brew "spinframework/tap/spin"
+brew "wasmcloud/wasmcloud/wash"
+brew "wasmedge"
+brew "wasmer"
+brew "wasi-runtimes"

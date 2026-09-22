@@ -1,0 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+colima start --cpu 4 --memory 8 --disk 60 --vm-type vz --mount-type virtiofs
+docker --context colima info >/dev/null
+echo 'Docker/Colima is ready. Use docker --context colima, and colima stop when finished.'

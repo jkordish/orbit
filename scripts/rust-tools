@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+exec uv run --locked --project "$ORBIT_ROOT/templates/python" python "$ORBIT_ROOT/scripts/rust-tools.py" "$@"

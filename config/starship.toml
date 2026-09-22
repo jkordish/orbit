@@ -1,0 +1,165 @@
+# Orbit — a quiet, context-aware prompt for this development machine.
+# Edit this source, then run ./scripts/configure to apply it.
+"$schema" = 'https://starship.rs/config-schema.json'
+palette = 'orbit'
+add_newline = true
+scan_timeout = 30
+command_timeout = 800
+format = """
+$username$hostname$directory$git_branch$git_commit$git_state$git_status${custom.orbit}$fill$battery$memory_usage$cmd_duration$time
+$kubernetes$aws$docker_context$rust$python$nodejs$golang$zig$nix_shell$jobs$status$character"""
+
+[palettes.orbit]
+indigo = '#B4BEFE'
+mint = '#94E2D5'
+green = '#A6E3A1'
+amber = '#F9E2AF'
+rose = '#F38BA8'
+blue = '#89B4FA'
+muted = '#7F849C'
+text = '#CDD6F4'
+
+[directory]
+style = 'bold fg:indigo'
+format = '[ $path]($style)[$read_only]($read_only_style) '
+truncation_length = 3
+truncate_to_repo = true
+truncation_symbol = '…/'
+read_only = ' 󰌾'
+read_only_style = 'fg:rose'
+home_symbol = ''
+
+[username]
+show_always = false
+style_user = 'fg:amber'
+style_root = 'bold fg:rose'
+format = '[$user]($style)'
+
+[hostname]
+ssh_only = true
+format = '[@$hostname](fg:amber) '
+
+[git_branch]
+symbol = ' '
+style = 'fg:mint'
+format = '[$symbol$branch(:$remote_branch)]($style) '
+truncation_length = 32
+truncation_symbol = '…'
+
+[git_commit]
+only_detached = true
+format = '[@$hash](fg:amber) '
+
+[git_state]
+format = '[$state( $progress_current/$progress_total)](bold fg:rose) '
+
+[git_status]
+style = 'fg:amber'
+format = '([$all_status$ahead_behind]($style) )'
+conflicted = '×${count} '
+ahead = '↑${count} '
+behind = '↓${count} '
+diverged = '↑${ahead_count} ↓${behind_count} '
+untracked = '?${count} '
+stashed = '≡${count} '
+modified = '~${count} '
+staged = '+${count} '
+renamed = '»${count} '
+deleted = '-${count} '
+
+[custom.orbit]
+description = 'Read-only orbit repository state badge'
+command = 'configured=${ORBIT_ROOT:-$HOME/.config/orbit}; current=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; [ "$current" = "$configured" ] || exit 0; test -x "$configured/scripts/repository-status" || exit 0; "$configured/scripts/repository-status" "$configured" 2>/dev/null | cut -f1 | tr "[:upper:]" "[:lower:]"'
+when = 'configured=${ORBIT_ROOT:-$HOME/.config/orbit}; current=$(git rev-parse --show-toplevel 2>/dev/null) && test "$current" = "$configured" && test -x "$configured/scripts/repository-status"'
+format = '[󰒡 $output](fg:muted) '
+
+[fill]
+symbol = ' '
+
+[cmd_duration]
+min_time = 3000
+format = '[󱎫 $duration](fg:amber) '
+
+[time]
+disabled = false
+time_format = '%H:%M'
+format = '[ $time](fg:muted)'
+
+# Keep the right edge quiet until the machine needs attention.
+[battery]
+format = '[$symbol$percentage]($style) '
+full_symbol = '󰁹 '
+charging_symbol = '󰂄 '
+discharging_symbol = '󰂃 '
+unknown_symbol = '󰂑 '
+empty_symbol = '󰂎 '
+
+[[battery.display]]
+threshold = 30
+style = 'fg:amber'
+
+[[battery.display]]
+threshold = 10
+style = 'bold fg:rose'
+discharging_symbol = '󰂎 '
+
+[memory_usage]
+disabled = false
+threshold = 85
+symbol = '󰍛 '
+format = '[$symbol$ram_pct]($style) '
+style = 'fg:amber'
+
+[character]
+success_symbol = '[❯](bold fg:mint)'
+error_symbol = '[❯](bold fg:rose)'
+vimcmd_symbol = '[❮](bold fg:indigo)'
+vimcmd_replace_one_symbol = '[❮](bold fg:rose)'
+vimcmd_replace_symbol = '[❮](bold fg:rose)'
+vimcmd_visual_symbol = '[❮](bold fg:amber)'
+
+[status]
+disabled = false
+format = '[ $status](fg:rose) '
+
+[jobs]
+symbol = ' '
+format = '[$symbol$number](fg:blue) '
+number_threshold = 1
+symbol_threshold = 1
+
+[rust]
+format = '[󱘗 $version](fg:rose) '
+
+[python]
+format = '[ $version( · $virtualenv)](fg:amber) '
+
+[nodejs]
+format = '[ $version](fg:green) '
+
+[golang]
+format = '[ $version](fg:blue) '
+
+[zig]
+format = '[ $version](fg:amber) '
+
+[nix_shell]
+format = '[ $state( · $name)](fg:blue) '
+
+[kubernetes]
+disabled = false
+format = '[󱃾 $context( : $namespace)]($style) '
+style = 'fg:blue'
+
+# This is a visual hint based on the context name, not a permission check.
+[[kubernetes.contexts]]
+context_pattern = '(?i).*prod.*'
+style = 'bold fg:rose'
+
+[aws]
+format = '[ ($profile)(@$region)](fg:amber) '
+force_display = false
+
+[docker_context]
+format = '[ $context](fg:blue) '
+only_with_files = true

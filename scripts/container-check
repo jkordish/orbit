@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+image=$(cat "$ORBIT_ROOT/config/container-smoke-image.txt")
+architecture=$(container run --rm --cpus 1 --memory 256m "$image" uname -m)
+if [ "$architecture" != aarch64 ]; then
+  printf 'Unexpected container architecture: %s\n' "$architecture" >&2
+  exit 1
+fi
+echo 'Apple container ran the pinned Alpine image successfully (aarch64).'

@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+if [ "$#" -gt 0 ]; then printf 'Usage: scripts/projects\n' >&2; exit 2; fi
+src_root=${DEV_MACHINE_SRC_ROOT:-${ORBIT_SRC_ROOT:-$HOME/src}}
+if [ ! -d "$src_root" ]; then
+  printf 'No source directory found at %s. Set DEV_MACHINE_SRC_ROOT to choose one.\n' "$src_root"
+  exit 0
+fi
+printf 'ORBIT / PROJECT INVENTORY\n'
+printf 'Source root: %s\n' "$src_root"
+printf 'Reads manifest filenames only; project code and configuration are not opened.\n\n'
+found=0
+shopt -s nullglob
+for project in "$src_root"/*; do
+  [ -d "$project" ] || continue
+  languages=()
+  [ -f "$project/Cargo.toml" ] && languages+=(Rust)
+  [ -f "$project/go.mod" ] && languages+=(Go)
+  if [ -f "$project/pyproject.toml" ] || [ -f "$project/requirements.txt" ]; then languages+=(Python); fi
+  if [ -f "$project/package.json" ] || [ -f "$project/pnpm-workspace.yaml" ]; then languages+=(JavaScript/TypeScript); fi
+  if [ -f "$project/Package.swift" ] || compgen -G "$project/*.xcodeproj/project.pbxproj" >/dev/null || compgen -G "$project/*.xcworkspace/contents.xcworkspacedata" >/dev/null; then
+    languages+=(Apple)
+  fi
+  [ -f "$project/flake.nix" ] && languages+=(Nix)
+  [ "${#languages[@]}" -gt 0 ] || continue
+  found=1
+  printf '  %-32s %s\n' "${project##*/}" "$(IFS=', '; printf '%s' "${languages[*]}")"
+done
+if [ "$found" -eq 0 ]; then printf '  No supported language manifests found.\n'; fi

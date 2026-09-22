@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+marker="$ORBIT_ROOT/.state/environment-root"
+if [ -f "$marker" ] && [ "$(cat "$marker")" = "$ORBIT_ROOT" ]; then
+  exit 0
+fi
+# Venv shebangs and package-manager links are not portable. Preserve generated
+# folders, then let the locked installers rebuild them at the current location.
+mkdir -p "$ORBIT_ROOT/.state/backups"
+backup=$(mktemp -d "$ORBIT_ROOT/.state/backups/environments.XXXXXX")
+for relative in templates/python/.venv templates/typescript/node_modules templates/rust/target; do
+  directory="$ORBIT_ROOT/$relative"
+  if [ -e "$directory" ] || [ -L "$directory" ]; then
+    mkdir -p "$backup/$(dirname "$relative")"
+    mv "$directory" "$backup/$relative"
+    printf 'Preserved copied environment: %s\n' "$relative"
+  fi
+done
+printf '%s\n' "$ORBIT_ROOT" > "$marker"
+echo 'Generated environments will be rebuilt here from lockfiles.'

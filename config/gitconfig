@@ -1,0 +1,59 @@
+[init]
+    defaultBranch = main
+[pull]
+    ff = only
+[core]
+    editor = code --wait
+    autocrlf = input
+    whitespace = trailing-space,space-before-tab
+    preloadIndex = true
+    untrackedCache = true
+    fsmonitor = true
+[credential]
+    helper = osxkeychain
+
+[column]
+    ui = auto
+
+[commit]
+    verbose = true
+
+[diff]
+    algorithm = histogram
+    colorMoved = default
+
+[delta]
+    navigate = true
+    line-numbers = true
+    side-by-side = true
+    syntax-theme = Catppuccin Mocha
+
+[interactive]
+    diffFilter = delta --color-only
+
+[merge]
+    conflictStyle = zdiff3
+
+[rerere]
+    enabled = true
+    autoupdate = true
+
+[push]
+    default = simple
+    autoSetupRemote = true
+    followTags = true
+
+[branch]
+    sort = -committerdate
+
+[tag]
+    sort = version:refname
+
+[status]
+    showUntrackedFiles = all
+
+[filter "lfs"]
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true

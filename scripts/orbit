@@ -1,0 +1,109 @@
+#!/bin/bash
+set -euo pipefail
+
+ORBIT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+
+color_reset=''
+color_indigo=''
+color_mint=''
+color_amber=''
+color_rose=''
+if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
+  color_reset=$'\033[0m'
+  color_indigo=$'\033[38;2;180;190;254m'
+  color_mint=$'\033[38;2;148;226;213m'
+  color_amber=$'\033[38;2;249;226;175m'
+  color_rose=$'\033[38;2;243;139;168m'
+fi
+
+usage() {
+  cat <<EOF
+${color_indigo}ORBIT${color_reset} / ORBIT COMMAND CENTER
+
+Usage: orbit <command> [options]
+
+Read-only views
+  ${color_mint}status${color_reset}       Machine readiness (alias: doctor)
+  ${color_mint}repo${color_reset}         Read-only Git state for a checkout
+  ${color_mint}recovery${color_reset}     Inventory preserved setup backups
+  ${color_mint}projects${color_reset}     Inventory project language manifests
+
+Explicit actions
+  ${color_amber}provision${color_reset}   Run the complete one-step workstation setup (alias: setup)
+  ${color_amber}sync${color_reset}        Safely return this checkout to main
+  ${color_amber}services${color_reset}    Govern container runtimes
+  ${color_amber}check${color_reset}       Run repository validation
+  ${color_amber}new${color_reset}         Create a starter project
+  ${color_amber}update${color_reset}      Update packages from a clean checkout
+
+Examples
+  orbit status --docker
+  orbit repo ~/src/my-project
+  orbit new python morning-brief ~/src --git --commit
+  orbit sync
+  orbit services status
+  orbit services sleep
+
+Every command keeps its existing safety contract. Actions are never inferred
+from a status view; use the explicit subcommand when you want one.
+EOF
+}
+
+run_script() {
+  local script=$1
+  shift
+  exec "$ORBIT_ROOT/scripts/$script" "$@"
+}
+
+run_setup() {
+  exec "$ORBIT_ROOT/setup" "$@"
+}
+
+command=${1:-help}
+if [ "$#" -gt 0 ]; then shift; fi
+
+case "$command" in
+  help|--help|-h)
+    if [ "$#" -gt 0 ]; then
+      usage >&2
+      exit 2
+    fi
+    usage
+    ;;
+  status|doctor)
+    run_script doctor "$@"
+    ;;
+  repo|repository)
+    run_script repository-status "$@"
+    ;;
+  recovery)
+    run_script recovery "$@"
+    ;;
+  projects|workspace)
+    run_script projects "$@"
+    ;;
+  provision|setup)
+    run_setup "$@"
+    ;;
+  sync)
+    run_script sync "$@"
+    ;;
+  services)
+    run_script services "$@"
+    ;;
+  check)
+    run_script check "$@"
+    ;;
+  new|new-project)
+    run_script new-project "$@"
+    ;;
+  update)
+    run_script update "$@"
+    ;;
+  *)
+    printf '%sORBIT%s: unknown command %s\n\n' \
+      "$color_rose" "$color_reset" "$command" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+mkdir -p "$HOME/.config/orbit" "$ORBIT_ROOT/.state/backups"
+# The Python configurator backs up changed destinations and installs them atomically.
+uv run --locked --project "$ORBIT_ROOT/templates/python" python "$ORBIT_ROOT/scripts/configure.py"
+echo 'Managed user configuration applied; changed files were backed up before replacement.'

@@ -1,0 +1,2 @@
+# Optional profiles: cloud infra wasm editors autocomplete java
+# Per-machine selections are stored in ignored .state/profiles.txt.
