@@ -66,14 +66,38 @@ def write_changed(
             os.unlink(temporary_name)
 
 
-def ensure_line_last(path: Path, line: str, backup_name: str, mode: int | None = None) -> None:
+def ensure_line_last(
+    path: Path,
+    line: str,
+    backup_name: str,
+    mode: int | None = None,
+    legacy_lines: tuple[str, ...] = (),
+) -> None:
     target = target_path(path)
     old = target.read_text() if target.exists() else ""
-    lines = [item for item in old.splitlines() if item != line]
+    managed_lines = {line, *legacy_lines}
+    lines = [item for item in old.splitlines() if item not in managed_lines]
     updated = "\n".join(lines)
     if updated:
         updated += "\n"
     updated += line + "\n"
+    write_changed(path, updated, backup_name, mode)
+
+
+def ensure_line_first(
+    path: Path,
+    line: str,
+    backup_name: str,
+    mode: int | None = None,
+    legacy_lines: tuple[str, ...] = (),
+) -> None:
+    target = target_path(path)
+    old = target.read_text() if target.exists() else ""
+    managed_lines = {line, *legacy_lines}
+    lines = [item for item in old.splitlines() if item not in managed_lines]
+    updated = line + "\n" + "\n".join(lines)
+    if lines:
+        updated += "\n"
     write_changed(path, updated, backup_name, mode)
 
 
@@ -149,7 +173,12 @@ shell_source = root / "config/shell.zsh"
 if shell_source.is_file():
     write_changed(managed_dir / "shell.zsh", shell_source.read_text(), "shell.zsh")
     write_changed(managed_dir / "root", f"{root}\n", "orbit-root", mode=0o600)
-    ensure_line_last(home / ".zshrc", 'source "$HOME/.config/orbit/shell.zsh"', "zshrc")
+    ensure_line_last(
+        home / ".zshrc",
+        'source "$HOME/.config/orbit/shell.zsh"',
+        "zshrc",
+        legacy_lines=('source "$HOME/.config/dev-machine/shell.zsh"',),
+    )
     preserve_zsh_history()
 profile_files = (root / "config/profiles.txt", root / ".state/profiles.txt")
 profile_names: list[str] = []
@@ -177,13 +206,36 @@ if ssh_source.is_file():
 ssh_config = home / ".ssh/config"
 ssh_include = "Include ~/.config/orbit/ssh.config"
 if ssh_source.is_file():
-    ensure_line_last(ssh_config, ssh_include, "ssh-config", mode=0o600)
+    ensure_line_first(
+        ssh_config,
+        ssh_include,
+        "ssh-config",
+        mode=0o600,
+        legacy_lines=("Include ~/.config/dev-machine/ssh.config",),
+    )
 
 gitconfig = home / ".gitconfig"
 old = gitconfig.read_text() if gitconfig.exists() else ""
 include = '[include]\n    path = ~/.config/orbit/gitconfig\n'
-if "path = ~/.config/orbit/gitconfig" not in old:
-    write_changed(gitconfig, include + old)
+managed_git_paths = {
+    "path = ~/.config/dev-machine/gitconfig",
+    "path = ~/.config/orbit/gitconfig",
+}
+git_lines = []
+include_index = None
+for line in old.splitlines():
+    if line.strip() in managed_git_paths:
+        if include_index is None:
+            include_index = len(git_lines)
+            git_lines.append("    path = ~/.config/orbit/gitconfig")
+        continue
+    git_lines.append(line)
+if include_index is None:
+    updated_gitconfig = include + old
+else:
+    updated_gitconfig = "\n".join(git_lines) + ("\n" if old.endswith("\n") else "")
+if updated_gitconfig != old:
+    write_changed(gitconfig, updated_gitconfig)
 
 docker = home / ".docker/config.json"
 data = json.loads(docker.read_text()) if docker.exists() else {}
@@ -200,5 +252,14 @@ write_changed(ghostty_fragment, (root / "config/ghostty.conf").read_text())
 ghostty = home / "Library/Application Support/com.mitchellh.ghostty/config.ghostty"
 old = ghostty.read_text() if ghostty.exists() else ""
 font_include = f"config-file = {ghostty_fragment}"
-if font_include not in old.splitlines():
-    write_changed(ghostty, old.rstrip() + "\n" + font_include + "\n")
+legacy_font_include = f"config-file = {home / '.config' / 'dev-machine' / 'ghostty.conf'}"
+ghostty_lines = [
+    line for line in old.splitlines()
+    if line not in {font_include, legacy_font_include}
+]
+updated_ghostty = "\n".join(ghostty_lines).rstrip()
+if updated_ghostty:
+    updated_ghostty += "\n"
+updated_ghostty += font_include + "\n"
+if updated_ghostty != old:
+    write_changed(ghostty, updated_ghostty)
