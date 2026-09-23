@@ -38,22 +38,22 @@ command -v git >/dev/null 2>&1 || hold 'Git is unavailable; install Apple Comman
 
 mkdir -p "$HOME/.config"
 if [ -L "$install_root" ]; then
-  hold '~/.config/orbit is a symbolic link; refusing to follow or replace it.'
+  hold "$install_root is a symbolic link; refusing to follow or replace it."
 elif [ -e "$install_root" ]; then
-  [ -d "$install_root" ] || hold '~/.config/orbit exists and is not a directory; no files were changed.'
+  [ -d "$install_root" ] || hold "$install_root exists and is not a directory; no files were changed."
   git_root=$(git -C "$install_root" rev-parse --show-toplevel 2>/dev/null) ||
-    hold '~/.config/orbit is not a Git checkout; existing files were left untouched.'
+    hold "$install_root is not a Git checkout; existing files were left untouched."
   expected_root=$(cd "$install_root" && pwd -P)
   [ "$git_root" = "$expected_root" ] ||
-    hold '~/.config/orbit is inside a different Git checkout; existing files were left untouched.'
+    hold "$install_root is inside a different Git checkout; existing files were left untouched."
   origin=$(git -C "$install_root" remote get-url origin 2>/dev/null) ||
-    hold 'The existing checkout has no origin remote; existing files were left untouched.'
+    hold "The existing checkout at $install_root has no origin remote; existing files were left untouched."
   origin=${origin%/}
   case "$origin" in
     https://github.com/jkordish/orbit|https://github.com/jkordish/orbit.git|\
     git@github.com:jkordish/orbit|git@github.com:jkordish/orbit.git|\
     ssh://git@github.com/jkordish/orbit|ssh://git@github.com/jkordish/orbit.git) ;;
-    *) hold 'The existing checkout is not from jkordish/orbit; existing files were left untouched.' ;;
+    *) hold "The existing checkout at $install_root is not from jkordish/orbit; existing files were left untouched." ;;
   esac
   [ -x "$install_root/scripts/sync" ] ||
     hold 'The existing Orbit checkout is incomplete; no setup was started.'
