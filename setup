@@ -16,7 +16,7 @@ are asked to install without upgrading, and the setup lock prevents concurrent
 runs from racing over the same checkout or machine configuration. If a run
 stops, --resume continues from the recorded phase.
 
-Profiles: cloud infra wasm editors autocomplete java
+Profiles: cloud infra wasm editors autocomplete java; use --profile all for every profile.
 EOF
 }
 

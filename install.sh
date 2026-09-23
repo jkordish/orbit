@@ -6,7 +6,7 @@ install_root="${HOME:?HOME must be set}/.config/orbit"
 
 usage() {
   cat <<'EOF'
-Usage: install.sh [--resume] [--profile NAME]...
+Usage: install.sh [--resume] [--profile NAME|all]...
 
 Clone or safely update Orbit at ~/.config/orbit, then run its full setup.
 Run as your normal macOS user. Optional arguments are passed to ./setup.

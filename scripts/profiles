@@ -7,12 +7,17 @@ if [ "$#" -gt 0 ]; then shift; fi
 config_file="$root/config/profiles.txt"
 state_root="$root/.state"
 state_file="$state_root/profiles.txt"
-usage() { echo 'Usage: scripts/profiles [--list|--validate|--select|--install|--check|--update] [--profile NAME ...]' >&2; }
+# Keep this list aligned with profiles/*.Brewfile. The explicit list also lets
+# this validator work when copied on its own by setup diagnostics and checks.
+available_profiles=(autocomplete cloud editors infra java wasm)
+usage() { echo 'Usage: scripts/profiles [--list|--validate|--select|--install|--check|--update] [--profile NAME|all ...]' >&2; }
 valid() {
-  case "$1" in
-    cloud|infra|wasm|editors|autocomplete|java) return 0 ;;
-    *) echo "Unknown profile: $1" >&2; return 2 ;;
-  esac
+  local candidate
+  for candidate in "${available_profiles[@]}"; do
+    if [ "$candidate" = "$1" ]; then return 0; fi
+  done
+  echo "Unknown profile: $1" >&2
+  return 2
 }
 validate_file() {
   local file=$1 name
@@ -34,8 +39,12 @@ validate_file "$state_file"
 requested=()
 while [ "$#" -gt 0 ]; do
   if [ "$1" != --profile ] || [ "$#" -lt 2 ]; then usage; exit 2; fi
-  valid "$2"
-  requested+=("$2")
+  if [ "$2" = all ]; then
+    requested+=("${available_profiles[@]}")
+  else
+    valid "$2"
+    requested+=("$2")
+  fi
   shift 2
 done
 case "$mode" in
@@ -52,7 +61,7 @@ case "$mode" in
     done
     exit 0 ;;
   --list)
-    printf 'Available: autocomplete cloud editors infra java wasm\nEnabled:\n'
+    printf 'Available: all, %s\nEnabled:\n' "${available_profiles[*]}"
     for file in "$config_file" "$state_file"; do
       [ -f "$file" ] || continue
       while IFS= read -r name || [ -n "$name" ]; do

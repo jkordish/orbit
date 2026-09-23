@@ -18,10 +18,11 @@ Orbit into `~/.config/orbit`, and runs the complete setup. It reuses and safely
 syncs an existing Orbit checkout; it refuses to replace a different directory,
 repository, or symbolic link. Review [install.sh](install.sh) first if you want
 to inspect the bootstrap code. Optional profiles can be selected in the same
-command, for example:
+command. Use `all` to include every optional profile currently defined in
+`profiles/`:
 
     curl --fail --location --proto '=https' --tlsv1.2 \
-      https://raw.githubusercontent.com/jkordish/orbit/main/install.sh | /bin/bash -s -- --profile infra
+      https://raw.githubusercontent.com/jkordish/orbit/main/install.sh | /bin/bash -s -- --profile all
 
 You can also clone Orbit manually and run setup from the checkout:
 
@@ -87,7 +88,8 @@ names are stored in ignored .state/profiles.txt, not tracked configuration.
     ./setup --profile infra --profile cloud
     ./scripts/profiles --list
 
-Available profiles are autocomplete, cloud, editors, infra, java, and wasm. The
+Available profiles are autocomplete, cloud, editors, infra, java, and wasm.
+`--profile all` selects every optional profile defined in `profiles/`. The
 cloud profile currently provides AWS tooling. Review each profile Brewfile
 before selecting it; Homebrew taps and formulas run third-party installation
 code.
