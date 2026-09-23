@@ -7,9 +7,25 @@ project checkout.
 
 ## Quick start
 
-Review the package lists and scripts before applying them. On a fresh Mac:
+Review the package lists and scripts before applying them. For a fresh Mac,
+download and run the current `main` installer with:
 
-    git clone <repository-url> ~/.config/orbit
+    curl --fail --location --proto '=https' --tlsv1.2 \
+      https://raw.githubusercontent.com/jkordish/orbit/main/install.sh | /bin/bash
+
+The installer checks for Apple Silicon macOS and Command Line Tools, clones
+Orbit into `~/.config/orbit`, and runs the complete setup. It reuses and safely
+syncs an existing Orbit checkout; it refuses to replace a different directory,
+repository, or symbolic link. Review [install.sh](install.sh) first if you want
+to inspect the bootstrap code. Optional profiles can be selected in the same
+command, for example:
+
+    curl --fail --location --proto '=https' --tlsv1.2 \
+      https://raw.githubusercontent.com/jkordish/orbit/main/install.sh | /bin/bash -s -- --profile infra
+
+You can also clone Orbit manually and run setup from the checkout:
+
+    git clone https://github.com/jkordish/orbit.git ~/.config/orbit
     cd ~/.config/orbit
     ./setup
 

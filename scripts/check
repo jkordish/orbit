@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 cd "$ORBIT_ROOT"
-shell_scripts=(bootstrap.command setup scripts/apply scripts/configure scripts/doctor scripts/recovery scripts/repository-status scripts/sync scripts/check scripts/services scripts/docker-start scripts/container-check scripts/update scripts/macos-defaults scripts/env.sh scripts/prepare-environments scripts/rust-tools scripts/profiles scripts/new-project scripts/orbit scripts/projects)
+shell_scripts=(bootstrap.command install.sh setup scripts/apply scripts/configure scripts/doctor scripts/recovery scripts/repository-status scripts/sync scripts/check scripts/services scripts/docker-start scripts/container-check scripts/update scripts/macos-defaults scripts/env.sh scripts/prepare-environments scripts/rust-tools scripts/profiles scripts/new-project scripts/orbit scripts/projects)
 for script in "${shell_scripts[@]}"; do bash -n "$script"; done
 shellcheck -x "${shell_scripts[@]}"
 zsh -n config/shell.zsh
