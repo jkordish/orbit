@@ -61,7 +61,10 @@ if [ "$resume_requested" -eq 1 ] && [ "${#setup_args[@]}" -gt 0 ]; then
   printf 'HOLD · --resume cannot select new profiles because it may skip apply. Run ./setup with the profile arguments to reconcile from the beginning.\n' >&2
   exit 2
 fi
-scope_args=("${setup_args[@]}")
+scope_args=()
+if [ "${#setup_args[@]}" -gt 0 ]; then
+  scope_args=("${setup_args[@]}")
+fi
 
 state_root="$ORBIT_ROOT/.state"
 lock_root="$state_root/provision.lock"
@@ -153,7 +156,11 @@ acquire_lock
 cleanup() { rm -rf "$lock_root"; }
 trap cleanup EXIT
 
-effective_profiles=$(./scripts/profiles --resolve "${scope_args[@]}")
+if [ "${#scope_args[@]}" -gt 0 ]; then
+  effective_profiles=$(./scripts/profiles --resolve "${scope_args[@]}")
+else
+  effective_profiles=$(./scripts/profiles --resolve)
+fi
 
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 phase='preflight'
