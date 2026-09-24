@@ -60,6 +60,9 @@ report, run ./scripts/doctor. To install packages and configure dotfiles
 without the full service and smoke-check phases, use ./scripts/apply.
 
 The `./scripts/orbit` command groups the day-to-day views and explicit actions.
+Run it without arguments for an interactive command board that adapts to narrow
+terminals and points to the first useful commands. Piped help and `TERM=dumb`
+keep the plain text layout; `NO_COLOR` removes terminal color.
 Its read-only `status`, `plan`, `enter`, and `map` views share a Python core and support
 `--json` for scripts and integrations:
 

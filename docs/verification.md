@@ -28,9 +28,12 @@ Python core. `--json` returns the same report as text with `schema_version: 1`,
 including exit code and next action. The wrappers disable Python bytecode
 writes. `scripts/check` exercises text/JSON rendering, interactive layout,
 narrow terminal wrapping, invalid arguments, profile previews in an isolated
-home, project entry, and doctor check results
-with local probes stubbed. The real doctor can still report missing installed
-tools after repository checks pass; no installer is run by those checks.
+home, project entry, and doctor check results with local probes stubbed. The
+real doctor can still report missing installed tools after repository checks
+pass; no installer is run by those checks.
+The Bash command board is a presentation-only view: run `scripts/orbit` in an
+interactive terminal for its compact layout, or pipe `scripts/orbit help` for
+plain text. Neither path runs readiness probes or changes machine state.
 The map check covers mixed readiness, invalid declarations, manifest-free Git
 checkouts, symbolic-link exclusion, scan-limit disclosure, and unchanged
 project files. A ready row confirms only the checks described by `orbit enter`.

@@ -8,15 +8,17 @@ color_indigo=''
 color_mint=''
 color_amber=''
 color_rose=''
+color_muted=''
 if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
   color_reset=$'\033[0m'
   color_indigo=$'\033[38;2;180;190;254m'
   color_mint=$'\033[38;2;148;226;213m'
   color_amber=$'\033[38;2;249;226;175m'
   color_rose=$'\033[38;2;243;139;168m'
+  color_muted=$'\033[38;2;166;173;200m'
 fi
 
-usage() {
+usage_plain() {
   cat <<EOF
 ${color_indigo}ORBIT${color_reset} / ORBIT COMMAND CENTER
 
@@ -55,6 +57,114 @@ Examples
 Read-only status, enter, map, and plan also support --json. Actions are never
 inferred from a view; use the explicit subcommand when you want one.
 EOF
+}
+
+terminal_columns() {
+  local size
+  if size=$(stty size 2>/dev/null </dev/tty); then
+    size=${size##* }
+    if [ "$size" -gt 0 ] 2>/dev/null; then
+      printf '%s\n' "$size"
+    else
+      printf '%s\n' "${COLUMNS:-80}"
+    fi
+  else
+    printf '%s\n' "${COLUMNS:-80}"
+  fi
+}
+
+usage_description() {
+  local remaining=$1 limit=$2 chunk
+  while [ "${#remaining}" -gt "$limit" ]; do
+    chunk=${remaining:0:limit}
+    if [[ $chunk == *' '* ]]; then chunk=${chunk% *}; fi
+    if [ -z "$chunk" ]; then chunk=${remaining:0:limit}; fi
+    printf '      %s\n' "$chunk"
+    remaining=${remaining:${#chunk}}
+    while [[ $remaining == ' '* ]]; do remaining=${remaining# }; done
+  done
+  printf '      %s\n' "$remaining"
+}
+
+usage_item() {
+  local command_name=$1 description=$2 tone=$3 width=$4
+  if [ "$width" -ge 58 ]; then
+    printf '    %s%-16s%s %s\n' "$tone" "$command_name" "$color_reset" "$description"
+  else
+    printf '    %s%s%s\n' "$tone" "$command_name" "$color_reset"
+    usage_description "$description" "$((width - 6))"
+  fi
+}
+
+usage_tty() {
+  local width rule tagline
+  width=$(terminal_columns)
+  case "$width" in
+    ''|*[!0-9]*) width=80 ;;
+  esac
+  if [ "$width" -lt 20 ]; then width=20; fi
+  if [ "$width" -gt 100 ]; then width=100; fi
+  printf -v rule '%*s' "$((width - 2))" ''
+  rule=${rule// /─}
+  tagline='Your workstation command center'
+  if [ "$width" -lt 40 ]; then tagline='Ready to build'; fi
+
+  printf '\n  %s◉ ORBIT%s\n' "$color_indigo" "$color_reset"
+  printf '  %s%s%s\n' "$color_muted" "$tagline" "$color_reset"
+  printf '  %s%s%s\n' "$color_muted" "$rule" "$color_reset"
+  printf '\n  %sSTART HERE%s\n' "$color_indigo" "$color_reset"
+  usage_item 'orbit status' 'See what needs attention' "$color_mint" "$width"
+  usage_item 'orbit map --git' 'Survey project tools and Git' "$color_mint" "$width"
+  usage_item 'orbit plan' 'Preview managed changes' "$color_mint" "$width"
+
+  printf '\n  %sEXPLORE%s  %sread-only%s\n' "$color_indigo" "$color_reset" "$color_muted" "$color_reset"
+  usage_item 'status' 'Machine readiness (doctor)' "$color_mint" "$width"
+  usage_item 'repo' 'Inspect one checkout' "$color_mint" "$width"
+  usage_item 'recovery' 'Review saved backups' "$color_mint" "$width"
+  usage_item 'projects' 'Find project manifests' "$color_mint" "$width"
+  usage_item 'map' 'Survey local projects; --git adds Git' "$color_mint" "$width"
+  usage_item 'enter' 'Check a project toolchain' "$color_mint" "$width"
+  usage_item 'plan' 'Preview profiles and files' "$color_mint" "$width"
+
+  if [ "$width" -lt 32 ]; then
+    printf '\n  %sMAKE CHANGES%s\n' "$color_indigo" "$color_reset"
+  else
+    printf '\n  %sMAKE CHANGES%s  %sexplicit only%s\n' "$color_indigo" "$color_reset" "$color_muted" "$color_reset"
+  fi
+  usage_item 'provision' 'Set up this workstation (setup)' "$color_amber" "$width"
+  usage_item 'sync' 'Safely return to main' "$color_amber" "$width"
+  usage_item 'services' 'Manage container runtimes' "$color_amber" "$width"
+  usage_item 'check' 'Validate this repository' "$color_amber" "$width"
+  usage_item 'new' 'Create a starter project' "$color_amber" "$width"
+  usage_item 'update' 'Update packages from clean Git' "$color_amber" "$width"
+
+  printf '\n  %sTRY NEXT%s\n' "$color_indigo" "$color_reset"
+  if [ "$width" -lt 38 ]; then
+    printf '    %sorbit status%s\n' "$color_mint" "$color_reset"
+    printf '    %sorbit map --git%s\n' "$color_mint" "$color_reset"
+    printf '    %sorbit plan%s\n' "$color_mint" "$color_reset"
+    printf '    %sorbit provision%s\n' "$color_amber" "$color_reset"
+  else
+    printf '    %sorbit plan --profile all%s\n' "$color_mint" "$color_reset"
+    printf '    %sorbit provision --profile all%s\n' "$color_amber" "$color_reset"
+    printf '    %sorbit new python my-app ~/src%s\n' "$color_amber" "$color_reset"
+  fi
+  if [ "$width" -lt 38 ]; then
+    printf '\n  %sJSON: status, map%s\n' "$color_muted" "$color_reset"
+    printf '  %senter, plan%s\n\n' "$color_muted" "$color_reset"
+  elif [ "$width" -lt 50 ]; then
+    printf '\n  %s--json: status, enter, map, plan%s\n\n' "$color_muted" "$color_reset"
+  else
+    printf '\n  %sstatus, enter, map, and plan support --json.%s\n\n' "$color_muted" "$color_reset"
+  fi
+}
+
+usage() {
+  if [ -t 1 ] && [ "${TERM:-}" != dumb ]; then
+    usage_tty
+  else
+    usage_plain
+  fi
 }
 
 run_script() {
@@ -118,7 +228,7 @@ case "$command" in
     run_script update "$@"
     ;;
   *)
-    printf '%sORBIT%s: unknown command %s\n\n' \
+    printf '%sORBIT%s: unknown command %q\n\n' \
       "$color_rose" "$color_reset" "$command" >&2
     usage >&2
     exit 2
