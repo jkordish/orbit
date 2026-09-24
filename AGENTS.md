@@ -89,6 +89,9 @@ scope.
 - Avoid repeated banners in the full setup flow. Preserve underlying command
   output so a failed phase remains diagnosable. Use `./setup --preview-ui` to
   review real setup renderers without provisioning or writing `.state`.
+- Review setup and its child scripts as one story: the opening must show the
+  effective profile scope, and recovery guidance must match the entrypoint
+  the person is running.
 
 ## Shared AI guidance
 

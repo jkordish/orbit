@@ -88,6 +88,11 @@ failure state retains the failing exit code and points to `./setup --resume`.
 Review the display with `./setup --preview-ui` at 80 and 24 columns, with color,
 `NO_COLOR`, and plain piped output. Preview renders sample states without
 creating `.state` or running any phase; real phase output must remain visible.
+The opening scope uses the profile resolver, so it includes previously selected
+and newly requested profiles without claiming they are installed.
+The phase record saves that resolved scope before bootstrap; resume replays it
+through apply. Older records without a saved scope cannot resume bootstrap or
+apply because their requested profiles cannot be recovered reliably.
 Setup refuses symbolic links for its state directory, lock, and phase record
 before writing.
 

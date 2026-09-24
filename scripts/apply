@@ -11,7 +11,11 @@ if [ "$(uname -s)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
   exit 1
 fi
 if ! xcode-select -p >/dev/null 2>&1; then
-  echo 'Install Apple Command Line Tools with xcode-select --install, then rerun apply; no packages or settings were changed.' >&2
+  if [ "${ORBIT_SETUP_CONTEXT:-}" = full ]; then
+    echo 'Install Apple Command Line Tools with xcode-select --install before resuming setup; no packages or settings were changed.' >&2
+  else
+    echo 'Install Apple Command Line Tools with xcode-select --install, then rerun apply; no packages or settings were changed.' >&2
+  fi
   exit 1
 fi
 command -v brew >/dev/null || { echo 'Run ./bootstrap.command first.' >&2; exit 1; }

@@ -61,6 +61,7 @@ if [ "$resume_requested" -eq 1 ] && [ "${#setup_args[@]}" -gt 0 ]; then
   printf 'HOLD · --resume cannot select new profiles because it may skip apply. Run ./setup with the profile arguments to reconcile from the beginning.\n' >&2
   exit 2
 fi
+scope_args=("${setup_args[@]}")
 
 state_root="$ORBIT_ROOT/.state"
 lock_root="$state_root/provision.lock"
@@ -86,6 +87,39 @@ if [ "$resume_requested" -eq 1 ]; then
       ;;
     *)
       printf 'HOLD · provision state has no resumable phase: %s\n' "${resume_phase:-unknown}" >&2
+      exit 1
+      ;;
+  esac
+
+  recorded_scope_version=$(sed -n 's/^scope_version=//p' "$state_file" | head -n 1)
+  case "$recorded_scope_version" in
+    1)
+      scope_args=()
+      recorded_profile_count=0
+      while IFS= read -r record; do
+        case "$record" in
+          profile=*)
+            profile=${record#profile=}
+            recorded_profile_count=$((recorded_profile_count + 1))
+            if [ "$recorded_profile_count" -gt 32 ] || ! ./scripts/profiles --validate --profile "$profile"; then
+              printf 'HOLD · recorded setup profiles are invalid; inspect .state/provision-state before retrying.\n' >&2
+              exit 1
+            fi
+            scope_args+=(--profile "$profile")
+            ;;
+        esac
+      done < "$state_file"
+      ;;
+    '')
+      case "$resume_phase" in
+        bootstrap|apply)
+          printf 'HOLD · this older setup record did not save its profile choices. Rerun ./setup with the original --profile options.\n' >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    *)
+      printf 'HOLD · unsupported setup profile record; inspect .state/provision-state before retrying.\n' >&2
       exit 1
       ;;
   esac
@@ -119,15 +153,21 @@ acquire_lock
 cleanup() { rm -rf "$lock_root"; }
 trap cleanup EXIT
 
+effective_profiles=$(./scripts/profiles --resolve "${scope_args[@]}")
+
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 phase='preflight'
 resuming=0
 phase_number=0
 setup_started=$SECONDS
 write_state() {
-  local next="$state_file.tmp.$$"
+  local next="$state_file.tmp.$$" profile
   {
     printf 'phase=%s\n' "$phase"
+    printf 'scope_version=1\n'
+    while IFS= read -r profile; do
+      if [ -n "$profile" ]; then printf 'profile=%s\n' "$profile"; fi
+    done <<< "$effective_profiles"
     printf 'started_at=%s\n' "$started_at"
     printf 'updated_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   } > "$next"
@@ -169,8 +209,8 @@ run_phase() {
 setup_heading
 write_state
 run_phase bootstrap env ORBIT_SETUP_CONTEXT=full ./bootstrap.command
-if [ "${#setup_args[@]}" -gt 0 ]; then
-  run_phase apply env ORBIT_SETUP_CONTEXT=full ./scripts/apply "${setup_args[@]}"
+if [ "${#scope_args[@]}" -gt 0 ]; then
+  run_phase apply env ORBIT_SETUP_CONTEXT=full ./scripts/apply "${scope_args[@]}"
 else
   run_phase apply env ORBIT_SETUP_CONTEXT=full ./scripts/apply
 fi

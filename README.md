@@ -73,7 +73,9 @@ readiness. It needs network access and several GB of free space. Homebrew's
 initial installation may ask for your administrator password; run the rest as
 your normal user. Do not run setup with sudo. Interactive setup shows a compact
 seven-step progress line, elapsed time for each phase, and a clear recovery or
-completion action. Piped logs keep plain phase labels and statuses.
+completion action. Its opening shows the effective optional profiles and the
+backup location before the first phase; this is the planned scope, not an
+installed-package check. Piped logs keep plain phase labels and statuses.
 
 ## Safety and recovery
 
@@ -93,7 +95,9 @@ If a run stops, inspect .state/provision-state and resume with:
     ./setup --resume
 
 To select new profiles, run a normal `./setup --profile NAME` so apply is not
-skipped. `--resume` rejects profile arguments.
+skipped. `--resume` rejects new profile arguments and reuses the recorded
+profile scope. An older record that predates profile recording must be restarted
+with the original `--profile` choices if it stopped before or during apply.
 
 A normal ./setup reconciles from the beginning. For a read-only readiness
 report, run ./scripts/doctor. To install packages and configure dotfiles

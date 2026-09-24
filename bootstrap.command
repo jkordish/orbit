@@ -7,7 +7,11 @@ if [ "$(uname -s)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
 fi
 if ! xcode-select -p >/dev/null 2>&1; then
   xcode-select --install
-  echo 'Finish the Apple Command Line Tools installer, then run this file again.'
+  if [ "${ORBIT_SETUP_CONTEXT:-}" = full ]; then
+    echo 'Finish the Apple Command Line Tools installer before resuming setup.'
+  else
+    echo 'Finish the Apple Command Line Tools installer, then run this file again.'
+  fi
   exit 1
 fi
 if [ ! -x /opt/homebrew/bin/brew ]; then

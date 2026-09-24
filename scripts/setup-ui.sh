@@ -3,6 +3,7 @@
 phase_total=7
 resume_requested=${resume_requested:-0}
 resume_phase=${resume_phase:-}
+effective_profiles=${effective_profiles:-}
 interactive=0
 color_reset=''
 color_indigo=''
@@ -70,6 +71,7 @@ setup_heading() {
     if [ "$resume_requested" -eq 1 ]; then
       printf '  RESUME · from %s\n' "$(phase_title "$resume_phase")"
     fi
+    setup_scope
     return
   fi
   width=$(terminal_columns)
@@ -92,6 +94,66 @@ setup_heading() {
       printf '  %sRESUME%s  from %s\n' "$color_amber" "$color_reset" \
         "$(phase_title "$resume_phase")"
     fi
+  fi
+  setup_scope
+}
+
+setup_scope() {
+  local profile count=0 joined='' width row='' candidate
+  local profiles=()
+  while IFS= read -r profile; do
+    [ -n "$profile" ] || continue
+    profiles+=("$profile")
+    count=$((count + 1))
+    joined="${joined:+$joined, }$profile"
+  done <<< "$effective_profiles"
+
+  if [ "$interactive" -eq 0 ]; then
+    if [ "$count" -eq 0 ]; then
+      printf '  Scope · base tools\n'
+    else
+      printf '  Scope · base tools + %s\n' "$joined"
+    fi
+    printf '  Backups · .state/backups\n'
+    return
+  fi
+
+  width=$(terminal_columns)
+  case "$width" in
+    ''|*[!0-9]*) width=80 ;;
+  esac
+  if [ "$width" -lt 33 ]; then
+    printf '  %sSCOPE%s  Base\n' "$color_indigo" "$color_reset"
+    if [ "$count" -eq 1 ]; then
+      printf '  1 profile\n'
+    elif [ "$count" -gt 1 ]; then
+      printf '  %s profiles\n' "$count"
+    fi
+  else
+    printf '  %sSCOPE%s  Base tools' "$color_indigo" "$color_reset"
+    if [ "$count" -eq 1 ]; then
+      printf ' + 1 profile'
+    elif [ "$count" -gt 1 ]; then
+      printf ' + %s profiles' "$count"
+    fi
+    printf '\n'
+  fi
+  if [ "$count" -gt 0 ]; then
+    for profile in "${profiles[@]}"; do
+      candidate="${row:+$row · }$profile"
+      if [ -n "$row" ] && [ "${#candidate}" -gt "$((width - 4))" ]; then
+        printf '    %s%s%s\n' "$color_mint" "$row" "$color_reset"
+        row=$profile
+      else
+        row=$candidate
+      fi
+    done
+    printf '    %s%s%s\n' "$color_mint" "$row" "$color_reset"
+  fi
+  if [ "$width" -lt 26 ]; then
+    printf '  %sBACKUPS%s\n    .state/backups\n' "$color_muted" "$color_reset"
+  else
+    printf '  %sBACKUPS%s  .state/backups\n' "$color_muted" "$color_reset"
   fi
 }
 
@@ -210,12 +272,14 @@ setup_ui_preview() {
     printf 'ORBIT / APPEARANCE\n  Sample states · no setup or state changes\n'
   fi
   if [ "$interactive" -eq 0 ]; then printf '\n'; fi
+  effective_profiles=$'cloud\neditors'
   setup_heading
   phase_started 1 'Bootstrap'
   phase_finished bootstrap 'Bootstrap' '12s'
 
   resume_requested=1
   resume_phase=services
+  effective_profiles=$'cloud\ninfra\nwasm\neditors\nautocomplete\njava'
   if [ "$interactive" -eq 0 ]; then printf '\n'; fi
   setup_heading
   phase_skipped 1 'Bootstrap' bootstrap services
