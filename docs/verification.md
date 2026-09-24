@@ -26,8 +26,9 @@ Selected profiles are checked by name; their packages are not verified here.
 The read-only `status`, `plan`, `enter`, and `map` views use the standard-library
 Python core. `--json` returns the same report as text with `schema_version: 1`,
 including exit code and next action. The wrappers disable Python bytecode
-writes. `scripts/check` exercises text/JSON rendering, invalid arguments,
-profile previews in an isolated home, project entry, and doctor check results
+writes. `scripts/check` exercises text/JSON rendering, interactive layout,
+narrow terminal wrapping, invalid arguments, profile previews in an isolated
+home, project entry, and doctor check results
 with local probes stubbed. The real doctor can still report missing installed
 tools after repository checks pass; no installer is run by those checks.
 The map check covers mixed readiness, invalid declarations, manifest-free Git

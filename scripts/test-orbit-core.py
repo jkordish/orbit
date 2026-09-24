@@ -3,11 +3,14 @@
 import contextlib
 import io
 import json
+import os
+import re
 import tempfile
 from pathlib import Path
 from unittest import mock
 
 from orbit_core import cli, doctor
+from orbit_core import report as report_ui
 from orbit_core.report import Report, Row, render
 
 with tempfile.TemporaryDirectory(prefix="orbit core ") as temporary:
@@ -66,5 +69,44 @@ with tempfile.TemporaryDirectory(prefix="orbit core ") as temporary:
     render(malicious, stream=text_output)
     assert 'safe "quote"\\u001b[31m' in text_output.getvalue()
     assert "\x1b" not in text_output.getvalue()
+
+    class TerminalBuffer(io.StringIO):
+        def isatty(self):
+            return True
+
+    styled = TerminalBuffer()
+    with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}, clear=True), \
+            mock.patch.object(report_ui.shutil, "get_terminal_size", return_value=os.terminal_size((80, 24))):
+        render(malicious, stream=styled)
+    raw = styled.getvalue()
+    uncolored = re.sub(r"\x1b\[[\d;]*m", "", raw)
+    assert "\x1b[" in raw and "\x1b[31m" not in raw
+    assert "╭─ ◉ ORBIT / ENTRY" in uncolored and "NEXT" in uncolored
+    assert 'safe "quote"\\u001b[31m' in uncolored
+    assert all(report_ui._cells(line) <= 80 for line in uncolored.splitlines())
+
+    narrow_report = Report("map", "WORKSPACE MAP", "ACTION NEEDED", "One project needs review",
+                           "Inspect the project and resolve its local tool requirements before continuing",
+                           notes=["Read-only inspection across narrow terminals."],
+                           rows=[Row("Projects", "REVIEW", "日本語-project-name",
+                                     "A long detail that should wrap cleanly even when the terminal is narrow.")])
+    narrow = TerminalBuffer()
+    with mock.patch.dict(os.environ, {"TERM": "xterm-256color", "NO_COLOR": "1"}, clear=True), \
+            mock.patch.object(report_ui.shutil, "get_terminal_size", return_value=os.terminal_size((48, 24))):
+        render(narrow_report, stream=narrow)
+    assert "\x1b" not in narrow.getvalue() and "╭─" in narrow.getvalue()
+    assert all(report_ui._cells(line) <= 48 for line in narrow.getvalue().splitlines())
+    assert "before continuing" in narrow.getvalue()
+
+    basic = TerminalBuffer()
+    with mock.patch.dict(os.environ, {"TERM": "dumb"}, clear=True):
+        render(malicious, stream=basic)
+    assert basic.getvalue().startswith("ORBIT / ENTRY\n") and "╭─" not in basic.getvalue()
+
+    machine = TerminalBuffer()
+    with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}, clear=True):
+        render(malicious, json_output=True, stream=machine)
+    assert json.loads(machine.getvalue())["rows"][0]["detail"] == 'safe "quote"\x1b[31m'
+    assert "╭─" not in machine.getvalue()
 
 print("Shared Orbit reports, JSON errors, and read-only doctor checks passed.")

@@ -73,6 +73,10 @@ JSON reports use schema version 1 and contain a status, rows, a next action,
 and an exit code matching the command result. The core uses only the Python
 standard library and runs without creating a virtual environment. The curl
 installer and initial provisioning remain Bash so they can bootstrap Python.
+On an interactive terminal, these views use a compact, responsive layout with
+status colors and a clear next step. `NO_COLOR` removes color, and `TERM=dumb`
+or piped output uses stable plain text. `--json` always emits the same data
+regardless of terminal settings.
 
 ## Commands
 

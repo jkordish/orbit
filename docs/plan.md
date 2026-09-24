@@ -72,3 +72,7 @@ JSON. Each row has a group, state, label, and detail. Exit codes retain their
 meaning: 0 for ready or a successful preview, 1 for action needed or a failed
 check, and 2 for invalid input. JSON is an output view of the same checks; it
 does not trigger setup, service changes, or project code.
+Interactive terminals render the same report as a responsive status card with
+grouped rows and a next step. Plain text remains the pipe and `TERM=dumb` view;
+`NO_COLOR` keeps the terminal layout while removing ANSI color. Presentation
+does not alter checks, actions, exit codes, or the JSON schema.
