@@ -76,7 +76,9 @@ is backed up before replacement, unchanged configuration does not create repeat
 backups, and setup phases are serialized. Homebrew may still upgrade a package
 when [installation requires it](https://docs.brew.sh/Manpage). Local state and
 backups live under ignored .state/; scripts/recovery inventories them for
-manual restoration.
+manual restoration. Its interactive view summarizes saved items and highlights
+ambiguous or unknown destinations before the full list, without opening backup
+contents.
 
 If a run stops, inspect .state/provision-state and resume with:
 

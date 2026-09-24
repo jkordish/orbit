@@ -43,6 +43,11 @@ It compares the checkout against main and cached origin/main. For another
 checkout, its next action refers to that checkout's Git workflow;
 Orbit's `scripts/sync` is recommended only for Orbit itself. This command
 inspects local state and cached `origin/main` without fetching or syncing.
+`scripts/recovery` shows a responsive summary, review-first names, and wrapped
+filename-based hints on interactive terminals. Piped output and `TERM=dumb`
+retain the existing line-oriented inventory. Counts come from entry types and
+filenames, never backup contents; unknown and ambiguous targets remain
+manual-review items.
 The map check covers mixed readiness, invalid declarations, manifest-free Git
 checkouts, symbolic-link exclusion, scan-limit disclosure, and unchanged
 project files. A ready row confirms only the checks described by `orbit enter`.

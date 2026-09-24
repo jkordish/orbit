@@ -34,61 +34,63 @@ format_kib() {
 
 describe_file_target() {
   local snapshot_name=$1
-
+  target_review=0
   case "$snapshot_name" in
     config.json.*)
-      printf '             Target hint: ~/.docker/config.json; review local credentials before restoring.\n'
+      target_hint='Target hint: ~/.docker/config.json; review local credentials before restoring.'
       ;;
     config.ghostty.*)
-      printf '             Target hint: ~/Library/Application Support/com.mitchellh.ghostty/config.ghostty.\n'
+      target_hint='Target hint: ~/Library/Application Support/com.mitchellh.ghostty/config.ghostty.'
       ;;
     finder.*.plist)
-      printf '             Target hint: macOS Finder defaults (com.apple.finder).\n'
+      target_hint='Target hint: macOS Finder defaults (com.apple.finder).'
       ;;
     global.*.plist)
-      printf '             Target hint: macOS global defaults (NSGlobalDomain).\n'
+      target_hint='Target hint: macOS global defaults (NSGlobalDomain).'
       ;;
     desktopservices.*.plist)
-      printf '             Target hint: macOS desktop-services defaults (com.apple.desktopservices).\n'
+      target_hint='Target hint: macOS desktop-services defaults (com.apple.desktopservices).'
       ;;
     ghostty.conf.*)
-      printf '             Target hint: ~/.config/orbit/ghostty.conf.\n'
+      target_hint='Target hint: ~/.config/orbit/ghostty.conf.'
       ;;
     shell.zsh.*)
-      printf '             Target hint: ~/.config/orbit/shell.zsh.\n'
+      target_hint='Target hint: ~/.config/orbit/shell.zsh.'
       ;;
     enabled-profiles.*)
-      printf '             Target hint: ~/.config/orbit/enabled-profiles.\n'
+      target_hint='Target hint: ~/.config/orbit/enabled-profiles.'
       ;;
     orbit-root.*)
-      printf '             Target hint: ~/.config/orbit/root.\n'
+      target_hint='Target hint: ~/.config/orbit/root.'
       ;;
     profiles.txt.*)
-      printf '             Target hint: repository config/profiles.txt.\n'
+      target_hint='Target hint: repository config/profiles.txt.'
       ;;
     ssh.config.*)
-      printf '             Target hint: ~/.config/orbit/ssh.config.\n'
+      target_hint='Target hint: ~/.config/orbit/ssh.config.'
       ;;
     ssh-config.*)
-      printf '             Target hint: ~/.ssh/config.\n'
+      target_hint='Target hint: ~/.ssh/config.'
       ;;
     starship.toml.*)
-      printf '             Target hint: ~/.config/starship.toml.\n'
+      target_hint='Target hint: ~/.config/starship.toml.'
       ;;
     zprofile.*)
-      printf '             Target hint: ~/.zprofile.\n'
+      target_hint='Target hint: ~/.zprofile.'
       ;;
     zshrc.*)
-      printf '             Target hint: ~/.zshrc.\n'
+      target_hint='Target hint: ~/.zshrc.'
       ;;
     cargo-tools)
-      printf '             Target hint: previous Cargo-installed executables under ~/.cargo/bin.\n'
+      target_hint='Target hint: previous Cargo-installed executables under ~/.cargo/bin.'
       ;;
     gitconfig.*)
-      printf '             Target is ambiguous: ~/.gitconfig or ~/.config/orbit/gitconfig.\n'
+      target_hint='Target is ambiguous: ~/.gitconfig or ~/.config/orbit/gitconfig.'
+      target_review=1
       ;;
     *)
-      printf '             Destination not inferred; inspect before restoring.\n'
+      target_hint='Destination not inferred; inspect before restoring.'
+      target_review=1
       ;;
   esac
 }
@@ -97,16 +99,142 @@ color_reset=''
 color_indigo=''
 color_mint=''
 color_amber=''
-if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
+color_muted=''
+interactive=0
+if [ -t 1 ] && [ "${TERM:-}" != dumb ]; then
+  interactive=1
+fi
+if [ "$interactive" -eq 1 ] && [ -z "${NO_COLOR+x}" ]; then
   color_reset=$'\033[0m'
   color_indigo=$'\033[38;2;180;190;254m'
   color_mint=$'\033[38;2;148;226;213m'
   color_amber=$'\033[38;2;249;226;175m'
+  color_muted=$'\033[38;2;166;173;200m'
 fi
 
-printf '%sORBIT%s / RECOVERY INVENTORY\n' "$color_indigo" "$color_reset"
-printf 'Read-only report. Filename-based target hints are not verified against saved contents.\n'
-printf 'Backup contents are not read or displayed; nothing is restored or removed.\n'
+terminal_columns() {
+  local size
+  if size=$(stty size 2>/dev/null </dev/tty); then
+    size=${size##* }
+    if [ "$size" -gt 0 ] 2>/dev/null; then
+      printf '%s\n' "$size"
+      return
+    fi
+  fi
+  printf '%s\n' "${COLUMNS:-80}"
+}
+
+rule() {
+  local spaces
+  printf -v spaces '%*s' "$1" ''
+  printf '%s' "${spaces// /─}"
+}
+
+wrap_line() {
+  local remaining=$1 marker=${2:-·} tone=${3:-$color_muted}
+  local limit=$((width - 4)) chunk candidate split first=1
+  while [ "${#remaining}" -gt "$limit" ]; do
+    chunk=${remaining:0:limit}
+    if [[ $chunk == *' '* ]]; then
+      chunk=${chunk% *}
+    else
+      split=''
+      if [[ $chunk == */* ]]; then
+        candidate=${chunk%/*}/
+        if [ "${#candidate}" -ge "$((limit / 3))" ]; then split=$candidate; fi
+      fi
+      if [[ $chunk == *.* ]]; then
+        candidate=${chunk%.*}.
+        if [ "${#candidate}" -ge "$((limit / 3))" ] && [ "${#candidate}" -gt "${#split}" ]; then
+          split=$candidate
+        fi
+      fi
+      if [ -n "$split" ]; then chunk=$split; fi
+    fi
+    if [ -z "$chunk" ]; then chunk=${remaining:0:limit}; fi
+    if [ "$first" -eq 1 ]; then
+      printf '  %s%s%s %s\n' "$tone" "$marker" "$color_reset" "$chunk"
+      first=0
+    else
+      printf '    %s\n' "$chunk"
+    fi
+    remaining=${remaining:${#chunk}}
+    while [[ $remaining == ' '* ]]; do remaining=${remaining# }; done
+  done
+  if [ "$first" -eq 1 ]; then
+    printf '  %s%s%s %s\n' "$tone" "$marker" "$color_reset" "$remaining"
+  else
+    printf '    %s\n' "$remaining"
+  fi
+}
+
+box_line() {
+  local label=$1 tone=$2
+  printf '│  %s%-*s%s│\n' "$tone" "$((width - 4))" "$label" "$color_reset"
+}
+
+section() {
+  local heading=$1 fill=$((width - 4 - ${#1}))
+  if [ "$fill" -lt 0 ]; then fill=0; fi
+  printf '\n  %s%s%s %s%s%s\n' "$color_indigo" "$heading" "$color_reset" \
+    "$color_muted" "$(rule "$fill")" "$color_reset"
+}
+
+footer() {
+  if [ "$interactive" -eq 0 ]; then
+    printf '\nNo cleanup or restore action is available in this command.\n'
+    return
+  fi
+  section NEXT
+  if [ "$inventory_failed" -ne 0 ]; then
+    wrap_line 'Some disk-usage measurements were unavailable; inspect those items manually.' '↳' "$color_amber"
+  elif [ "$review_items" -gt 0 ]; then
+    wrap_line "Review $review_items items with ambiguous or unknown targets before any manual restore." '↳' "$color_amber"
+  else
+    wrap_line 'Review a backup and its destination before any manual restore.' '↳' "$color_amber"
+  fi
+  wrap_line 'No cleanup or restore action is available in this command.'
+  printf '\n'
+}
+
+emit_detail() {
+  if [ "$interactive" -eq 1 ]; then
+    wrap_line "$1" '·' "${2:-$color_muted}"
+  else
+    printf '             %s\n' "$1"
+  fi
+}
+
+empty_backups() {
+  if [ "$interactive" -eq 0 ]; then
+    printf '\nNo local setup backups found. Nothing has been changed.\n'
+    return
+  fi
+  section 'PRESERVED STATE 0'
+  wrap_line 'No local setup backups found. Nothing has been changed.' '◇' "$color_amber"
+  section NEXT
+  wrap_line 'No recovery action is needed.' '↳' "$color_amber"
+  printf '\n'
+}
+
+if [ "$interactive" -eq 1 ]; then
+  width=$(terminal_columns)
+  case "$width" in
+    ''|*[!0-9]*) width=80 ;;
+  esac
+  if [ "$width" -lt 24 ]; then width=24; fi
+  if [ "$width" -gt 104 ]; then width=104; fi
+  printf '\n%s╭%s╮%s\n' "$color_indigo" "$(rule "$((width - 2))")" "$color_reset"
+  box_line '● READ ONLY' "$color_mint"
+  box_line 'ORBIT / RECOVERY' "$color_indigo"
+  printf '%s╰%s╯%s\n' "$color_indigo" "$(rule "$((width - 2))")" "$color_reset"
+  wrap_line 'Filename-based target hints are not verified against saved contents.'
+  wrap_line 'Backup contents are not read or displayed; nothing is restored or removed.'
+else
+  printf 'ORBIT / RECOVERY INVENTORY\n'
+  printf 'Read-only report. Filename-based target hints are not verified against saved contents.\n'
+  printf 'Backup contents are not read or displayed; nothing is restored or removed.\n'
+fi
 
 if [ -L "$state_root" ]; then
   printf '\nCannot inventory %s: the state directory is a symbolic link.\n' \
@@ -114,7 +242,7 @@ if [ -L "$state_root" ]; then
   exit 1
 fi
 if [ ! -e "$state_root" ]; then
-  printf '\nNo local setup backups found. Nothing has been changed.\n'
+  empty_backups
   exit 0
 fi
 if [ ! -d "$state_root" ] || [ ! -r "$state_root" ] || [ ! -x "$state_root" ]; then
@@ -129,7 +257,7 @@ if [ -L "$backup_root" ]; then
   exit 1
 fi
 if [ ! -e "$backup_root" ]; then
-  printf '\nNo local setup backups found. Nothing has been changed.\n'
+  empty_backups
   exit 0
 fi
 if [ ! -d "$backup_root" ] || [ ! -r "$backup_root" ] || [ ! -x "$backup_root" ]; then
@@ -148,11 +276,58 @@ fi
 
 shopt -s nullglob dotglob
 entries=( "$backup_root"/* )
-printf '\n%sPRESERVED STATE%s\n' "$color_mint" "$color_reset"
-printf '  Total disk use: %s\n' "$total_size"
+if [ "$interactive" -eq 1 ]; then
+  hinted_items=0
+  review_items=0
+  generated_items=0
+  review_names=()
+  for saved in "${entries[@]}"; do
+    saved_name=${saved##*/}
+    if [ -L "$saved" ]; then
+      review_items=$((review_items + 1))
+      review_names+=( "$saved_name" )
+    elif [ -d "$saved" ]; then
+      case "$saved_name" in
+        environments.*) generated_items=$((generated_items + 1)) ;;
+        *) review_items=$((review_items + 1)); review_names+=( "$saved_name" ) ;;
+      esac
+    elif [ -f "$saved" ]; then
+      describe_file_target "$saved_name"
+      if [ "$target_review" -eq 1 ]; then
+        review_items=$((review_items + 1))
+        review_names+=( "$saved_name" )
+      else
+        hinted_items=$((hinted_items + 1))
+      fi
+    else
+      review_items=$((review_items + 1))
+      review_names+=( "$saved_name" )
+    fi
+  done
+  section "PRESERVED STATE  ${#entries[@]}"
+  wrap_line "Total disk use: $total_size" '●' "$color_mint"
+  wrap_line "$hinted_items target hints · $review_items review items · $generated_items generated environments"
+  printf -v quoted_root '%q' "$backup_root"
+  wrap_line "Backup root: $quoted_root"
+  if [ "$review_items" -gt 0 ]; then
+    section "REVIEW FIRST  $review_items"
+    for review_name in "${review_names[@]}"; do
+      printf -v quoted_name '%q' "$review_name"
+      wrap_line "$quoted_name" '◇' "$color_amber"
+    done
+  fi
+  section "ALL SAVED ITEMS  ${#entries[@]}"
+else
+  printf '\nPRESERVED STATE\n'
+  printf '  Total disk use: %s\n' "$total_size"
+fi
 
 if [ "${#entries[@]}" -eq 0 ]; then
-  printf '  No saved items.\n'
+  if [ "$interactive" -eq 1 ]; then
+    wrap_line 'No saved items.' '◇' "$color_amber"
+  else
+    printf '  No saved items.\n'
+  fi
 else
   for entry in "${entries[@]}"; do
     entry_name=${entry##*/}
@@ -164,29 +339,39 @@ else
       inventory_failed=1
     fi
     quoted_name=$(printf '%q' "$entry_name")
-    printf '  %-10s %s\n' "$entry_size" "$quoted_name"
+    if [ "$interactive" -eq 1 ]; then
+      wrap_line "$quoted_name  ·  $entry_size" '◇' "$color_indigo"
+    else
+      printf '  %-10s %s\n' "$entry_size" "$quoted_name"
+    fi
 
     if [ ! -L "$entry" ] && [ -d "$entry" ]; then
       case "$entry_name" in
         environments.*)
-          printf '             Generated environment snapshot; lockfiles can rebuild these tools. Original files remain preserved.\n'
+          emit_detail 'Generated environment snapshot; lockfiles can rebuild these tools. Original files remain preserved.'
           ;;
         *)
-          printf '             Directory contents are not inspected; review before restoring.\n'
+          emit_detail 'Directory contents are not inspected; review before restoring.'
           ;;
       esac
     elif [ ! -L "$entry" ] && [ -f "$entry" ]; then
-      printf '             Snapshot; contents are not inspected.\n'
+      if [ "$interactive" -eq 0 ]; then
+        emit_detail 'Snapshot; contents are not inspected.'
+      fi
       describe_file_target "$entry_name"
+      if [ "$target_review" -eq 1 ]; then
+        emit_detail "$target_hint" "$color_amber"
+      else
+        emit_detail "$target_hint"
+      fi
     else
-      printf '             Unknown item; inspect before restoring.\n'
-      printf '             Destination not inferred; inspect before restoring.\n'
+      emit_detail 'Unknown item; inspect before restoring.' "$color_amber"
+      emit_detail 'Destination not inferred; inspect before restoring.' "$color_amber"
     fi
   done
 fi
 
-printf '\n%sNo cleanup or restore action is available in this command.%s\n' \
-  "$color_amber" "$color_reset"
+footer
 if [ "$inventory_failed" -ne 0 ]; then
   printf 'Some disk-usage measurements were unavailable.\n' >&2
   exit 1
