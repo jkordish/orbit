@@ -37,7 +37,8 @@ scope.
 - scripts/apply installs and configures packages, runtimes, editor extensions,
   and selected profiles.
 - setup runs the full provisioning flow, including macOS defaults and a
-  pinned container smoke check.
+  pinned container smoke check. Its state directory, lock, and phase record
+  must be real paths rather than symbolic links before any setup write.
 - scripts/check validates shell, configuration, Python, TypeScript, Go, and
   Rust without applying workstation Brewfiles or starting services.
 - scripts/projects only inventories project manifest filenames under the

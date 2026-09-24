@@ -61,7 +61,9 @@ The full setup workflow has additional machine effects: it bootstraps Homebrew,
 installs selected packages and runtimes, configures managed user settings,
 applies backed-up macOS defaults, starts Apple's container service, runs a
 digest-pinned container smoke check, then runs repository checks and doctor.
-Review README.md and the scripts before using it on a machine.
+Review README.md and the scripts before using it on a machine. The interactive
+setup phase cards do not change phase state or resume ordering. Setup refuses
+symbolic links for its state directory, lock, and phase record before writing.
 
 CI runs repository checks on Linux, where macOS-only setup and service commands
 are not invoked. A passing CI run verifies only the workflow steps and commit

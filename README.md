@@ -65,7 +65,8 @@ manifests, configures managed shell/editor preferences, starts Apple's
 container service, runs a digest-pinned container smoke check, and reports
 readiness. It needs network access and several GB of free space. Homebrew's
 initial installation may ask for your administrator password; run the rest as
-your normal user. Do not run setup with sudo.
+your normal user. Do not run setup with sudo. Interactive setup shows all seven
+phases and the current step; piped logs keep plain phase labels.
 
 ## Safety and recovery
 

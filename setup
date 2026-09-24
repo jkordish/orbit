@@ -47,6 +47,10 @@ fi
 state_root="$ORBIT_ROOT/.state"
 lock_root="$state_root/provision.lock"
 state_file="$state_root/provision-state"
+if [ -L "$state_root" ] || [ -L "$lock_root" ] || [ -L "$state_file" ]; then
+  printf 'HOLD · setup state contains a symbolic link; inspect .state, provision.lock, and provision-state before retrying.\n' >&2
+  exit 1
+fi
 mkdir -p "$state_root"
 
 resume_phase=''
@@ -101,6 +105,74 @@ trap cleanup EXIT
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 phase='preflight'
 resuming=0
+phase_number=0
+phase_total=7
+interactive=0
+color_reset=''
+color_indigo=''
+color_mint=''
+color_amber=''
+color_muted=''
+if [ -t 1 ] && [ "${TERM:-}" != dumb ]; then
+  interactive=1
+fi
+if [ "$interactive" -eq 1 ] && [ -z "${NO_COLOR+x}" ]; then
+  color_reset=$'\033[0m'
+  color_indigo=$'\033[38;2;180;190;254m'
+  color_mint=$'\033[38;2;148;226;213m'
+  color_amber=$'\033[38;2;249;226;175m'
+  color_muted=$'\033[38;2;166;173;200m'
+fi
+
+terminal_columns() {
+  local size
+  if size=$(stty size 2>/dev/null </dev/tty); then
+    size=${size##* }
+    if [ "$size" -gt 0 ] 2>/dev/null; then
+      printf '%s\n' "$size"
+      return
+    fi
+  fi
+  printf '%s\n' "${COLUMNS:-80}"
+}
+
+rule() {
+  local spaces
+  printf -v spaces '%*s' "$1" ''
+  printf '%s' "${spaces// /─}"
+}
+
+phase_card() {
+  local number=$1 label=$2 width title marks='' index
+  width=$(terminal_columns)
+  case "$width" in
+    ''|*[!0-9]*) width=80 ;;
+  esac
+  if [ "$width" -lt 20 ]; then width=20; fi
+  if [ "$width" -gt 80 ]; then width=80; fi
+  title=' ◉ ORBIT / SETUP '
+  if [ "$width" -lt 30 ]; then title=' ◉ ORBIT '; fi
+  for ((index = 1; index <= phase_total; index++)); do
+    if [ "$index" -lt "$number" ]; then
+      marks+='● '
+    elif [ "$index" -eq "$number" ]; then
+      marks+='◉ '
+    else
+      marks+='○ '
+    fi
+  done
+  printf '\n%s╭─%s%s╮%s\n' "$color_indigo" "$title" \
+    "$(rule "$((width - 3 - ${#title}))")" "$color_reset"
+  if [ "$width" -lt 30 ]; then
+    printf '│  %s%-*s%s│\n' "$color_indigo" "$((width - 4))" "$number / $phase_total" "$color_reset"
+    printf '│  %s%-*s%s│\n' "$color_indigo" "$((width - 4))" "$label" "$color_reset"
+  else
+    printf '│  %s%-*s%s│\n' "$color_indigo" "$((width - 4))" "$number / $phase_total  $label" "$color_reset"
+  fi
+  printf '│  %s%-*s%s│\n' "$color_mint" "$((width - 4))" "$marks" "$color_reset"
+  printf '%s╰%s╯%s\n' "$color_indigo" "$(rule "$((width - 2))")" "$color_reset"
+}
+
 write_state() {
   local next="$state_file.tmp.$$"
   {
@@ -114,18 +186,28 @@ write_state() {
 run_phase() {
   phase=$1
   shift
+  phase_number=$((phase_number + 1))
   if [ "$resume_requested" -eq 1 ] && [ "$resuming" -eq 0 ]; then
     if [ "$phase" != "$resume_phase" ]; then
-      printf '  SKIP · %s (resume starts at %s)\n' "$phase" "$resume_phase"
+      if [ "$interactive" -eq 1 ]; then
+        printf '  %s↷ SKIP%s  %s/%s %s (resume starts at %s)\n' "$color_muted" "$color_reset" \
+          "$phase_number" "$phase_total" "$phase" "$resume_phase"
+      else
+        printf '  SKIP · %s (resume starts at %s)\n' "$phase" "$resume_phase"
+      fi
       return 0
     fi
     resuming=1
   fi
   write_state
   phase_label=$(printf '%s' "$phase" | tr '[:lower:]' '[:upper:]')
-  printf '\nORBIT / %s\n' "$phase_label"
+  if [ "$interactive" -eq 1 ]; then
+    phase_card "$phase_number" "${phase_label//-/ }"
+  else
+    printf '\nORBIT / %s\n' "$phase_label"
+  fi
   if "$@"; then
-    printf '  DONE · %s\n' "$phase"
+    printf '  %sDONE%s · %s\n' "$color_mint" "$color_reset" "$phase"
     return 0
   fi
   status=$?
@@ -150,5 +232,11 @@ run_phase readiness ./scripts/doctor
 
 phase='complete'
 write_state
-printf '\nORBIT / PROVISIONING COMPLETE\n'
-printf '  READY · setup is repeat-safe; the last run completed every phase.\n'
+if [ "$interactive" -eq 1 ]; then
+  printf '\n  %s◉ ORBIT / COMPLETE%s\n' "$color_indigo" "$color_reset"
+  printf '  %s● READY%s · all %s setup phases completed.\n' "$color_mint" "$color_reset" "$phase_total"
+  printf '  %sNEXT%s · Open a new terminal, then run orbit status.\n' "$color_amber" "$color_reset"
+else
+  printf '\nORBIT / PROVISIONING COMPLETE\n'
+  printf '  READY · setup is repeat-safe; the last run completed every phase.\n'
+fi
