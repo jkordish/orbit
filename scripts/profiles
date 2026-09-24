@@ -43,6 +43,129 @@ append_once() {
   fi
   resolved+=("$name")
 }
+
+profile_description() {
+  case "$1" in
+    autocomplete) printf 'Inline Zsh completion suggestions' ;;
+    cloud) printf 'AWS, Kubernetes, Helm, and Argo CD' ;;
+    editors) printf 'Helix, language servers, and Tree-sitter' ;;
+    infra) printf 'Ansible, Terraform tools, and linters' ;;
+    java) printf 'OpenJDK 21 for JVM work' ;;
+    wasm) printf 'Spin, wasmCloud, WasmEdge, and Wasmer' ;;
+  esac
+}
+
+terminal_columns() {
+  local size
+  if size=$(stty size 2>/dev/null </dev/tty); then
+    size=${size##* }
+    if [ "$size" -gt 0 ] 2>/dev/null; then
+      printf '%s\n' "$size"
+      return
+    fi
+  fi
+  printf '%s\n' "${COLUMNS:-80}"
+}
+
+rule() {
+  local spaces
+  printf -v spaces '%*s' "$1" ''
+  printf '%s' "${spaces// /─}"
+}
+
+wrap_note() {
+  local remaining=$1 marker=${2:-·} tone=${3:-$color_muted}
+  local limit=$((width - 4)) chunk first=1
+  while [ "${#remaining}" -gt "$limit" ]; do
+    chunk=${remaining:0:limit}
+    if [[ $chunk == *' '* ]]; then chunk=${chunk% *}; fi
+    if [ -z "$chunk" ]; then chunk=${remaining:0:limit}; fi
+    if [ "$first" -eq 1 ]; then
+      printf '  %s%s%s %s\n' "$tone" "$marker" "$color_reset" "$chunk"
+      first=0
+    else
+      printf '    %s\n' "$chunk"
+    fi
+    remaining=${remaining:${#chunk}}
+    while [[ $remaining == ' '* ]]; do remaining=${remaining# }; done
+  done
+  if [ "$first" -eq 1 ]; then
+    printf '  %s%s%s %s\n' "$tone" "$marker" "$color_reset" "$remaining"
+  else
+    printf '    %s\n' "$remaining"
+  fi
+}
+
+list_tty() {
+  local name description selected_count=0 state marker tone title
+  width=$(terminal_columns)
+  case "$width" in
+    ''|*[!0-9]*) width=80 ;;
+  esac
+  if [ "$width" -lt 24 ]; then width=24; fi
+  if [ "$width" -gt 96 ]; then width=96; fi
+  color_reset=''
+  color_indigo=''
+  color_mint=''
+  color_muted=''
+  color_amber=''
+  if [ -z "${NO_COLOR+x}" ]; then
+    color_reset=$'\033[0m'
+    color_indigo=$'\033[38;2;180;190;254m'
+    color_mint=$'\033[38;2;148;226;213m'
+    color_muted=$'\033[38;2;166;173;200m'
+    color_amber=$'\033[38;2;249;226;175m'
+  fi
+  for name in "${available_profiles[@]}"; do
+    if selected "$name"; then selected_count=$((selected_count + 1)); fi
+  done
+
+  title=' ◉ ORBIT / PROFILES '
+  if [ "$width" -lt 32 ]; then title=' ◉ ORBIT '; fi
+  printf '\n%s╭─%s%s╮%s\n' "$color_indigo" "$title" \
+    "$(rule "$((width - 3 - ${#title}))")" "$color_reset"
+  printf '│  %s%-*s%s│\n' "$color_mint" "$((width - 4))" \
+    "$selected_count of ${#available_profiles[@]} selected" "$color_reset"
+  printf '%s╰%s╯%s\n' "$color_indigo" "$(rule "$((width - 2))")" "$color_reset"
+  wrap_note 'Base tools are always included.'
+  if [ "$selected_count" -lt "${#available_profiles[@]}" ]; then
+    wrap_note '--profile all selects every optional profile.'
+  else
+    wrap_note 'Every optional profile is selected.'
+  fi
+  wrap_note 'Selected profiles are not an installed-package check.'
+
+  printf '\n  %sOPTIONAL PROFILES%s %s%s%s\n' "$color_indigo" "$color_reset" \
+    "$color_muted" "$(rule "$((width - 22))")" "$color_reset"
+  for name in "${available_profiles[@]}"; do
+    description=$(profile_description "$name")
+    if selected "$name"; then
+      state='SELECTED'
+      marker='●'
+      tone=$color_mint
+    else
+      state='AVAILABLE'
+      marker='◇'
+      tone=$color_amber
+    fi
+    if [ "$width" -ge 72 ]; then
+      printf '  %s%s %-9s%s %-13s %s\n' "$tone" "$marker" "$state" "$color_reset" \
+        "$name" "$description"
+    else
+      printf '  %s%s%s %s\n' "$tone" "$marker" "$color_reset" "$name"
+      wrap_note "$state · $description"
+    fi
+  done
+  printf '\n  %sNEXT%s %s%s%s\n' "$color_indigo" "$color_reset" \
+    "$color_muted" "$(rule "$((width - 8))")" "$color_reset"
+  if [ "$selected_count" -lt "${#available_profiles[@]}" ]; then
+    wrap_note 'Preview a choice with orbit plan --profile NAME.' '↳' "$color_amber"
+  else
+    wrap_note 'Preview selected settings with orbit plan.' '↳' "$color_amber"
+  fi
+  printf '\n'
+}
+
 validate_file "$config_file"
 validate_file "$state_file"
 requested=()
@@ -98,14 +221,18 @@ case "$mode" in
     done
     exit 0 ;;
   --list)
-    printf 'Available: all, %s\nEnabled:\n' "${available_profiles[*]}"
-    for file in "$config_file" "$state_file"; do
-      [ -f "$file" ] || continue
-      while IFS= read -r name || [ -n "$name" ]; do
-        case "$name" in ''|\#*) continue ;; esac
-        printf '%s\n' "$name"
-      done < "$file"
-    done
+    if [ -t 1 ] && [ "${TERM:-}" != dumb ]; then
+      list_tty
+    else
+      printf 'Available: all, %s\nEnabled:\n' "${available_profiles[*]}"
+      for file in "$config_file" "$state_file"; do
+        [ -f "$file" ] || continue
+        while IFS= read -r name || [ -n "$name" ]; do
+          case "$name" in ''|\#*) continue ;; esac
+          printf '%s\n' "$name"
+        done < "$file"
+      done
+    fi
     exit 0 ;;
   --install|--check|--update) ;;
   *) usage; exit 2 ;;

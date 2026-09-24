@@ -26,6 +26,8 @@ without running workstation setup.
 Local profiles and recovery backups belong under ignored .state/. Shared
 instructions and templates remain versioned. Never commit credentials, local
 assistant sessions, machine inventories, or generated setup history.
+The Bash profile validator owns selection and the read-only profile catalog,
+so the catalog remains available before Orbit installs managed Python.
 
 ## Change preview
 

@@ -21,7 +21,7 @@ configuration backups, and clear next steps.</p>
 
 | See the state | Set up the machine | Keep a way back |
 | --- | --- | --- |
-| `orbit status`, `plan`, `enter`, and `map` explain readiness before changes. | `orbit provision` installs general Rust, TypeScript, Python, Go, container, shell, and editor tooling. | Managed files are backed up before replacement; `orbit recovery` inventories saved backups. |
+| `orbit status`, `profiles`, `plan`, `enter`, and `map` explain choices and readiness before changes. | `orbit provision` installs general Rust, TypeScript, Python, Go, container, shell, and editor tooling. | Managed files are backed up before replacement; `orbit recovery` inventories saved backups. |
 
 Orbit does not configure any application or project checkout.
 After setup, the managed Zsh configuration provides `orbit` as a shell command;
@@ -128,7 +128,7 @@ regardless of terminal settings.
 | ./scripts/orbit map [source-directory] | Read-only readiness map of immediate child projects |
 | ./scripts/orbit repo [path] | Read-only main/origin/main state for one checkout |
 | ./scripts/check | Repository and language-template validation |
-| ./scripts/profiles --list | Show optional profiles |
+| ./scripts/orbit profiles | Show optional profiles and selected choices |
 | ./scripts/services status | Inspect container service state |
 | ./scripts/services | Start Apple's container service |
 | ./scripts/container-check | Run the pinned container smoke check |
@@ -210,13 +210,13 @@ names are stored in ignored .state/profiles.txt, not tracked configuration.
 
     ./setup --profile editors
     ./setup --profile infra --profile cloud
-    ./scripts/profiles --list
+    ./scripts/orbit profiles
 
 Available profiles are autocomplete, cloud, editors, infra, java, and wasm.
 `--profile all` selects every optional profile defined in `profiles/`. The
 cloud profile currently provides AWS tooling. Review each profile Brewfile
 before selecting it; Homebrew taps and formulas run third-party installation
-code.
+code. The interactive catalog shows selection, not installed-package readiness.
 
 ## Runtime and package ownership
 

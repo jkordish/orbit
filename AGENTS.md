@@ -44,6 +44,10 @@ scope.
 - scripts/projects only inventories project manifest filenames under the
   selected source directory; it does not open manifests or execute project code.
   Symbolic-link child directories are skipped and disclosed.
+- orbit profiles displays optional Brewfiles and selected names without
+  installing packages or changing selection. Piped scripts/profiles --list
+  output keeps its existing format. Keep profile descriptions aligned with
+  their Brewfiles.
 - scripts/orbit map reuses bounded project entry checks for immediate children
   of one source directory. It skips symbolic links, reports incomplete scan
   coverage, and does not run project code or change project files.

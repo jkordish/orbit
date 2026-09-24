@@ -28,6 +28,7 @@ Read-only views
   ${color_mint}status${color_reset}       Machine readiness (alias: doctor)
   ${color_mint}repo${color_reset}         Read-only Git state for a checkout
   ${color_mint}recovery${color_reset}     Inventory preserved setup backups
+  ${color_mint}profiles${color_reset}     Explore optional tool profiles
   ${color_mint}projects${color_reset}     Inventory project language manifests
   ${color_mint}map${color_reset}          Map project tools; add --git for local Git state
   ${color_mint}enter${color_reset}        Inspect a project's local tool readiness
@@ -44,6 +45,7 @@ Explicit actions
 Examples
   orbit status --docker
   orbit status --json
+  orbit profiles
   orbit repo ~/src/my-project
   orbit enter ~/src/my-project
   orbit projects --json
@@ -122,6 +124,7 @@ usage_tty() {
   usage_item 'status' 'Machine readiness (doctor)' "$color_mint" "$width"
   usage_item 'repo' 'Inspect one checkout' "$color_mint" "$width"
   usage_item 'recovery' 'Review saved backups' "$color_mint" "$width"
+  usage_item 'profiles' 'Explore optional tool profiles' "$color_mint" "$width"
   usage_item 'projects' 'Find project manifests' "$color_mint" "$width"
   usage_item 'map' 'Survey local projects; --git adds Git' "$color_mint" "$width"
   usage_item 'enter' 'Check a project toolchain' "$color_mint" "$width"
@@ -192,6 +195,17 @@ case "$command" in
     ;;
   recovery)
     run_script recovery "$@"
+    ;;
+  profiles)
+    if [ "$#" -eq 1 ] && [ "$1" = --help ]; then
+      printf 'Usage: orbit profiles\nExplore optional profiles without changing selection.\n'
+      exit 0
+    fi
+    if [ "$#" -ne 0 ]; then
+      printf 'Usage: orbit profiles\n' >&2
+      exit 2
+    fi
+    run_script profiles --list
     ;;
   projects|workspace)
     run_script projects "$@"

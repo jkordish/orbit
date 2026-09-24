@@ -48,6 +48,10 @@ filename-based hints on interactive terminals. Piped output and `TERM=dumb`
 retain the existing line-oriented inventory. Counts come from entry types and
 filenames, never backup contents; unknown and ambiguous targets remain
 manual-review items.
+`orbit profiles` shows selected optional profiles and Brewfile-based
+descriptions without installing packages. The interactive catalog does not
+establish package readiness; piped `scripts/profiles --list` retains its plain
+format for scripts.
 The map check covers mixed readiness, invalid declarations, manifest-free Git
 checkouts, symbolic-link exclusion, scan-limit disclosure, and unchanged
 project files. A ready row confirms only the checks described by `orbit enter`.
