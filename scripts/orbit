@@ -27,7 +27,7 @@ Read-only views
   ${color_mint}repo${color_reset}         Read-only Git state for a checkout
   ${color_mint}recovery${color_reset}     Inventory preserved setup backups
   ${color_mint}projects${color_reset}     Inventory project language manifests
-  ${color_mint}map${color_reset}          Map project tool readiness under ~/src
+  ${color_mint}map${color_reset}          Map project tools; add --git for local Git state
   ${color_mint}enter${color_reset}        Inspect a project's local tool readiness
   ${color_mint}plan${color_reset}         Preview profile and managed file changes
 
@@ -45,6 +45,7 @@ Examples
   orbit repo ~/src/my-project
   orbit enter ~/src/my-project
   orbit map ~/src
+  orbit map ~/src --git
   orbit plan --profile all
   orbit new python morning-brief ~/src --git --commit
   orbit sync

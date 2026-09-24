@@ -50,6 +50,11 @@ one source directory. It shows an empty Git checkout as a review item, limits
 the scan to 128 child directories, reports incomplete coverage, and directs the
 user to `orbit enter` for detail. The existing `orbit projects` command remains
 a manifest-filename inventory that does not open project declarations.
+The optional `orbit map --git` view adds a separate Git snapshot for each
+recognized project. It checks the working tree and configured upstream using
+cached refs, never network or Orbit's main-only synchronization policy. Dirty,
+ahead, and diverged projects receive priority in the suggested next action;
+the view offers a read-only Git status command for manual inspection.
 
 ## Command architecture
 

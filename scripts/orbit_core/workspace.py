@@ -6,7 +6,7 @@ import os
 import shlex
 from pathlib import Path
 
-from . import enter
+from . import enter, git_status
 from .report import Report, Row
 
 MAX_PROJECTS = 128
@@ -25,7 +25,7 @@ def _problem(report: Report) -> str:
     return report.next_action
 
 
-def build_report(root: Path) -> Report:
+def build_report(root: Path, *, include_git: bool = False) -> Report:
     """Summarize each direct child project using ``enter``'s bounded scan."""
     children = sorted(
         (path for path in root.iterdir() if not path.name.startswith(".") and not path.is_symlink() and path.is_dir()),
@@ -33,9 +33,38 @@ def build_report(root: Path) -> Report:
     )
     omitted = max(0, len(children) - MAX_PROJECTS)
     rows: list[Row] = []
+    git_rows: list[Row] = []
     ready = attention = review = 0
+    git_current = git_attention = git_review = git_other = 0
     first_attention: Path | None = None
     first_review: Path | None = None
+    first_git_critical: Path | None = None
+    first_git_attention: Path | None = None
+    first_git_review: Path | None = None
+
+    def record_git(project: Path) -> None:
+        nonlocal git_current, git_attention, git_review, git_other
+        nonlocal first_git_critical, first_git_attention, first_git_review
+        if not include_git:
+            return
+        try:
+            snapshot = git_status.inspect(project)
+        except (OSError, RuntimeError) as error:
+            snapshot = git_status.GitSnapshot("REVIEW", f"Git status unavailable: {error}", review=True)
+        git_rows.append(Row("Git", snapshot.state, project.name, snapshot.detail))
+        if snapshot.attention:
+            git_attention += 1
+            if snapshot.state in {"DIRTY", "DIVERGED", "AHEAD"}:
+                first_git_critical = first_git_critical or project
+            first_git_attention = first_git_attention or project
+        elif snapshot.review:
+            git_review += 1
+            first_git_review = first_git_review or project
+        elif snapshot.state == "MATCH":
+            git_current += 1
+        else:
+            git_other += 1
+
     for project in children[:MAX_PROJECTS]:
         try:
             inventory = enter.scan(project)
@@ -45,6 +74,14 @@ def build_report(root: Path) -> Report:
             if not (stacks or declarations or findings or manifest.exists() or manifest.is_symlink()
                     or git_marker.exists() or git_marker.is_symlink()):
                 continue
+        except (enter.InputError, OSError, UnicodeError, RuntimeError) as error:
+            review += 1
+            first_review = first_review or project
+            rows.append(Row("Projects", "REVIEW", project.name, f"Declaration cannot be read: {error}"))
+            record_git(project)
+            continue
+        record_git(project)
+        try:
             result = enter.build_report(project, inventory=inventory)
         except (enter.InputError, OSError, UnicodeError, RuntimeError) as error:
             review += 1
@@ -67,27 +104,42 @@ def build_report(root: Path) -> Report:
                 state = "REVIEW"
                 first_review = first_review or project
             rows.append(Row("Projects", state, project.name, f"{tools} · {_problem(result)}"))
+    rows.extend(git_rows)
     if omitted:
         review += 1
         rows.append(Row("Coverage", "REVIEW", "Scan limit", f"{omitted} directories beyond the first {MAX_PROJECTS} were not inspected"))
     if not rows:
         rows.append(Row("Projects", "EMPTY", "No recognized projects", "Add a supported manifest or .orbit.json"))
-    first_problem = first_attention or first_review
-    if first_problem:
-        action = f"./scripts/orbit enter {shlex.quote(str(first_problem))}"
+    if first_git_critical:
+        action = f"git -C {shlex.quote(str(first_git_critical))} status --short --branch"
+    elif first_attention:
+        action = f"./scripts/orbit enter {shlex.quote(str(first_attention))}"
+    elif first_git_attention:
+        action = f"git -C {shlex.quote(str(first_git_attention))} status --short --branch"
+    elif first_review:
+        action = f"./scripts/orbit enter {shlex.quote(str(first_review))}"
+    elif first_git_review:
+        action = f"git -C {shlex.quote(str(first_git_review))} status --short --branch"
     elif omitted:
         action = "Inspect a smaller source directory or use 'orbit enter' for an individual project."
     elif ready:
         action = "Open a project; run its own dependency and build checks when needed."
     else:
         action = "Add a supported project manifest or .orbit.json under this source directory."
+    summary = f"{ready} ready · {attention} need attention · {review} review"
+    notes = [f"Source root: {root}",
+             "Read-only: bounded project declarations and local tool probes; project code is never run.",
+             "Immediate child directories only; symbolic links skipped."]
+    if include_git:
+        summary += f" · Git {git_current} cached matches, {git_attention} attention, {git_review} review"
+        if git_other:
+            summary += f", {git_other} without checkout"
+        notes.append("Git uses configured upstream and cached refs only; no fetch, sync, or publish.")
     return Report(
         command="map", title="WORKSPACE MAP",
-        status="ACTION NEEDED" if attention else "REVIEW" if review or not ready else "WORKSPACE READY",
-        summary=f"{ready} ready · {attention} need attention · {review} review",
-        next_action=action, exit_code=1 if attention or review or not ready else 0,
-        notes=[f"Source root: {root}",
-               "Read-only: bounded project declarations and local tool probes; project code is never run.",
-               "Immediate child directories only; symbolic links skipped."],
+        status="ACTION NEEDED" if attention or git_attention else "REVIEW" if review or git_review or not ready else "WORKSPACE READY",
+        summary=summary,
+        next_action=action, exit_code=1 if attention or review or not ready or git_attention or git_review else 0,
+        notes=notes,
         rows=rows,
     )

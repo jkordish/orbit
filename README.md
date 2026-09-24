@@ -67,6 +67,7 @@ Its read-only `status`, `plan`, `enter`, and `map` views share a Python core and
     ./scripts/orbit plan --profile wasm --json
     ./scripts/orbit enter ~/src/example --json
     ./scripts/orbit map ~/src --json
+    ./scripts/orbit map ~/src --git --json
 
 JSON reports use schema version 1 and contain a status, rows, a next action,
 and an exit code matching the command result. The core uses only the Python
@@ -144,6 +145,18 @@ skips symbolic links, scans at most 128 child directories, reports any omitted
 directories, and does not run project code or change a checkout. Its result is
 tool readiness, not a project build or dependency check. `orbit projects`
 remains a fast manifest-filename inventory.
+
+Add `--git` to the map for a local Git safety view across those projects:
+
+    ./scripts/orbit map --git
+
+It reports local changes, branch and configured upstream, and ahead/behind
+counts without printing changed filenames. Comparisons use cached upstream
+refs; Orbit never fetches, syncs, commits, or publishes from this view. A
+`MATCH` row means only that the local commit matches the cached upstream ref.
+Local changes and unpushed commits take priority in the suggested next action.
+Worktrees with a `.git` file are supported; symbolic-link Git markers are
+reported for review without being followed.
 
 ## Profiles
 

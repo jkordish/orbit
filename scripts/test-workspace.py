@@ -3,11 +3,12 @@
 import contextlib
 import io
 import json
+import shlex
 import tempfile
 from pathlib import Path
 from unittest import mock
 
-from orbit_core import cli, enter, workspace
+from orbit_core import cli, enter, git_status, workspace
 
 
 def snapshot(root: Path) -> list[tuple[str, int]]:
@@ -73,6 +74,17 @@ with tempfile.TemporaryDirectory(prefix="orbit map ") as temporary:
     assert all(command in {"rustup", "node"} for command, *_ in checks)
     assert snapshot(source) == before, "workspace map changed a project file"
 
+    def fake_git(project):
+        if project == rust:
+            return git_status.GitSnapshot("DIRTY", "branch main; local changes present", attention=True)
+        return git_status.GitSnapshot("MATCH", "branch main; cached origin/main: commits match")
+
+    with mock.patch.object(enter, "ORBIT_ROOT", orbit), mock.patch.object(enter, "probe", fake_probe), \
+            mock.patch.object(workspace.git_status, "inspect", fake_git):
+        combined = workspace.build_report(source, include_git=True)
+    assert combined.next_action.startswith(f"git -C {shlex.quote(str(rust))}")
+    assert "Git 3 cached matches, 1 attention" in combined.summary
+
     empty = workspace.build_report(ignored)
     assert empty.exit_code == 1 and empty.status == "REVIEW"
 
@@ -86,5 +98,10 @@ with tempfile.TemporaryDirectory(prefix="orbit map ") as temporary:
     with contextlib.redirect_stdout(bad):
         code = cli.main(["map", str(base / "missing"), "--json"])
     assert code == 2 and json.loads(bad.getvalue())["status"] == "ERROR"
+
+    repeated = io.StringIO()
+    with contextlib.redirect_stdout(repeated):
+        code = cli.main(["map", "--git", "--git", "--json"])
+    assert code == 2 and json.loads(repeated.getvalue())["status"] == "ERROR"
 
 print("Workspace map checked readiness, review, symlink exclusion, and no project writes.")

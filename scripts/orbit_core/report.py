@@ -67,9 +67,9 @@ def render(report: Report, *, json_output: bool = False, stream: TextIO | None =
         if row.group != previous_group:
             stream.write(f"\n{_color(_safe(row.group.upper()), 'indigo', stream)}\n")
             previous_group = row.group
-        if row.state in {"PASS", "OK", "ENABLED", "SELECTED", "SYNCED", "TERMS ACCEPTED", "READY"}:
+        if row.state in {"PASS", "OK", "ENABLED", "SELECTED", "SYNCED", "TERMS ACCEPTED", "READY", "MATCH"}:
             color = "mint"
-        elif row.state in {"FAIL", "MISSING", "MISMATCH", "ACTION"}:
+        elif row.state in {"FAIL", "MISSING", "MISMATCH", "ACTION", "DIRTY", "DIVERGED", "AHEAD", "BEHIND"}:
             color = "rose"
         else:
             color = "amber"

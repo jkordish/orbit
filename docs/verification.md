@@ -33,6 +33,11 @@ tools after repository checks pass; no installer is run by those checks.
 The map check covers mixed readiness, invalid declarations, manifest-free Git
 checkouts, symbolic-link exclusion, scan-limit disclosure, and unchanged
 project files. A ready row confirms only the checks described by `orbit enter`.
+The optional `--git` check is verified in isolated repositories for matching,
+dirty, ahead, behind, diverged, worktree, and symbolic-link states. It uses
+cached refs and disables Git optional locks, lazy fetches, and file-system monitors; the
+focused check confirms the index bytes and modification time stay unchanged.
+It does not establish current remote state because it never fetches.
 
 The full setup workflow has additional machine effects: it bootstraps Homebrew,
 installs selected packages and runtimes, configures managed user settings,

@@ -13,7 +13,7 @@ HELP = {
     "status": "Usage: orbit status [--docker] [--json]\nInspect machine readiness without changing it.",
     "plan": "Usage: orbit plan [--profile NAME|all]... [--json]\nPreview profile and managed file changes.",
     "enter": "Usage: orbit enter [PROJECT_DIRECTORY] [--json]\nInspect local project tooling without running project code.",
-    "map": "Usage: orbit map [SOURCE_DIRECTORY] [--json]\nMap local tool readiness across immediate child projects.",
+    "map": "Usage: orbit map [SOURCE_DIRECTORY] [--git] [--json]\nMap project tooling and optional cached Git state.",
 }
 
 
@@ -51,12 +51,16 @@ def main(arguments: list[str]) -> int:
                 return _error(command, HELP[command], json_output)
             result = plan.build_report(ORBIT_ROOT, options)
         elif command == "map":
+            include_git = "--git" in options
+            if options.count("--git") > 1:
+                return _error(command, "--git may be specified once", json_output)
+            options = [option for option in options if option != "--git"]
             if len(options) > 1 or (options and options[0].startswith("-")):
                 return _error(command, HELP[command], json_output)
             source = Path(options[0]).expanduser().resolve() if options else workspace.default_source_root()
             if not source.is_dir():
                 return _error(command, f"no source directory at {source}", json_output)
-            result = workspace.build_report(source)
+            result = workspace.build_report(source, include_git=include_git)
         else:
             if len(options) > 1 or (options and options[0].startswith("-")):
                 return _error(command, HELP[command], json_output)

@@ -45,6 +45,9 @@ scope.
 - scripts/orbit map reuses bounded project entry checks for immediate children
   of one source directory. It skips symbolic links, reports incomplete scan
   coverage, and does not run project code or change project files.
+- orbit map --git compares project checkouts only with their cached configured
+  upstreams. Never fetch, sync, or publish from this view; preserve local work
+  and avoid assuming every project uses main.
 - scripts/enter reads bounded project declarations and probes local tools;
   it never executes project code or changes project or machine state.
 - scripts/orbit_core owns read-only status, plan, enter, and map report building.
