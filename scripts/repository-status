@@ -6,24 +6,152 @@ if [ "$#" -gt 1 ]; then
   exit 2
 fi
 
-repository=${1:-$(cd "$(dirname "$0")/.." && pwd)}
+orbit_root=$(cd "$(dirname "$0")/.." && pwd -P)
+repository=${1:-$orbit_root}
+is_orbit_checkout=0
 
-emit_status() {
-  printf '%s\t%s\t%s\n' "$1" "$2" "$3"
+git_probe() (
+  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_NAMESPACE
+  export GIT_OPTIONAL_LOCKS=0 GIT_NO_LAZY_FETCH=1 GIT_TERMINAL_PROMPT=0
+  git -c core.fsmonitor=false -c maintenance.auto=false -c gc.auto=0 \
+    -C "$repository" "$@"
+)
+
+color_reset=''
+color_indigo=''
+color_mint=''
+color_amber=''
+color_rose=''
+color_muted=''
+if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
+  color_reset=$'\033[0m'
+  color_indigo=$'\033[38;2;180;190;254m'
+  color_mint=$'\033[38;2;148;226;213m'
+  color_amber=$'\033[38;2;249;226;175m'
+  color_rose=$'\033[38;2;243;139;168m'
+  color_muted=$'\033[38;2;166;173;200m'
+fi
+
+terminal_columns() {
+  local size
+  if size=$(stty size 2>/dev/null </dev/tty); then
+    size=${size##* }
+    if [ "$size" -gt 0 ] 2>/dev/null; then
+      printf '%s\n' "$size"
+      return
+    fi
+  fi
+  printf '%s\n' "${COLUMNS:-80}"
 }
 
-if ! git -C "$repository" rev-parse --show-toplevel >/dev/null 2>&1; then
+rule() {
+  local spaces
+  printf -v spaces '%*s' "$1" ''
+  printf '%s' "${spaces// /─}"
+}
+
+box_text() {
+  local remaining=$1 tone=$2 limit=$((width - 5)) chunk
+  while [ "${#remaining}" -gt "$limit" ]; do
+    chunk=${remaining:0:limit}
+    if [[ $chunk == *' '* ]]; then chunk=${chunk% *}; fi
+    if [ -z "$chunk" ]; then chunk=${remaining:0:limit}; fi
+    printf '│  %s%-*s%s │\n' "$tone" "$limit" "$chunk" "$color_reset"
+    remaining=${remaining:${#chunk}}
+    while [[ $remaining == ' '* ]]; do remaining=${remaining# }; done
+  done
+  printf '│  %s%-*s%s │\n' "$tone" "$limit" "$remaining" "$color_reset"
+}
+
+note_text() {
+  local remaining=$1 marker=${2:-·} limit=$((width - 4)) chunk first=1
+  while [ "${#remaining}" -gt "$limit" ]; do
+    chunk=${remaining:0:limit}
+    if [[ $chunk == *' '* ]]; then chunk=${chunk% *}; fi
+    if [ -z "$chunk" ]; then chunk=${remaining:0:limit}; fi
+    if [ "$first" -eq 1 ]; then
+      printf '  %s%s%s %s\n' "$color_muted" "$marker" "$color_reset" "$chunk"
+      first=0
+    else
+      printf '    %s\n' "$chunk"
+    fi
+    remaining=${remaining:${#chunk}}
+    while [[ $remaining == ' '* ]]; do remaining=${remaining# }; done
+  done
+  if [ "$first" -eq 1 ]; then
+    printf '  %s%s%s %s\n' "$color_muted" "$marker" "$color_reset" "$remaining"
+  else
+    printf '    %s\n' "$remaining"
+  fi
+}
+
+emit_status() {
+  local state=$1 detail=$2 action=$3 tone icon path
+  if [ "$is_orbit_checkout" -eq 0 ]; then
+    case "$state" in
+      DIRTY) action='Review and preserve local changes in this checkout.' ;;
+      DETACHED) action='Review the current commit before switching branches in this checkout.' ;;
+      'OFF MAIN') action='Review this branch before switching branches in this checkout.' ;;
+      'NO REMOTE REF') action="Inspect or fetch this checkout's origin/main before comparing." ;;
+      BEHIND) action='Review and fast-forward this checkout with its own Git workflow.' ;;
+      AHEAD) action='Review local commits before deciding whether to publish this checkout.' ;;
+      DIVERGED) action='Review local and remote commits before reconciling this checkout.' ;;
+    esac
+  fi
+  if [ ! -t 1 ] || [ "${TERM:-}" = dumb ]; then
+    printf '%s\t%s\t%s\n' "$state" "$detail" "$action"
+    return
+  fi
+
+  width=$(terminal_columns)
+  case "$width" in
+    ''|*[!0-9]*) width=80 ;;
+  esac
+  if [ "$width" -lt 20 ]; then width=20; fi
+  if [ "$width" -gt 104 ]; then width=104; fi
+  tone=$color_amber
+  icon='◇'
+  case "$state" in
+    SYNCED) tone=$color_mint; icon='●' ;;
+    DIRTY|AHEAD|BEHIND|DIVERGED|UNAVAILABLE) tone=$color_rose; icon='●' ;;
+  esac
+
+  printf '\n  %s◉ ORBIT / GIT%s\n' "$color_indigo" "$color_reset"
+  printf '%s╭%s╮%s\n' "$color_indigo" "$(rule "$((width - 2))")" "$color_reset"
+  box_text "$icon $state" "$tone"
+  box_text "$detail" ''
+  printf '%s╰%s╯%s\n' "$color_indigo" "$(rule "$((width - 2))")" "$color_reset"
+  printf -v path '%q' "$repository"
+  note_text "Checkout: $path"
+  if [ "$state" != 'NOT REPOSITORY' ]; then
+    note_text 'Main and cached origin/main; no fetch or sync.'
+  fi
+  if [ "$is_orbit_checkout" -eq 0 ] && [ "$state" != 'NOT REPOSITORY' ]; then
+    note_text 'Orbit sync manages only the Orbit checkout.'
+  fi
+  printf '\n  %sNEXT%s %s%s%s\n' "$color_indigo" "$color_reset" "$color_muted" "$(rule "$((width - 8))")" "$color_reset"
+  if [ "$state" = 'NOT REPOSITORY' ]; then
+    action='Pass a Git checkout path to orbit repo.'
+  fi
+  note_text "${action:-No changes needed.}" '↳'
+  printf '\n'
+}
+
+if ! checkout_root=$(git_probe rev-parse --show-toplevel 2>/dev/null); then
   emit_status 'NOT REPOSITORY' 'Git checkout unavailable' ''
   exit 0
 fi
+if [ "$(cd "$checkout_root" 2>/dev/null && pwd -P)" = "$orbit_root" ]; then
+  is_orbit_checkout=1
+fi
 
-if ! changes=$(git -C "$repository" status --porcelain --untracked-files=all \
+if ! changes=$(git_probe status --porcelain --untracked-files=all \
   --ignore-submodules=none 2>/dev/null); then
   emit_status 'UNAVAILABLE' 'Git status unavailable' 'Inspect this Git checkout manually.'
   exit 0
 fi
 
-branch=$(git -C "$repository" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+branch=$(git_probe symbolic-ref --quiet --short HEAD 2>/dev/null || true)
 if [ -n "$changes" ]; then
   path_count=0
   while IFS= read -r _; do path_count=$((path_count + 1)); done <<< "$changes"
@@ -44,14 +172,14 @@ if [ "$branch" != main ]; then
   exit 0
 fi
 
-if ! git -C "$repository" rev-parse --verify --quiet \
+if ! git_probe rev-parse --verify --quiet \
   'refs/remotes/origin/main^{commit}' >/dev/null; then
   emit_status 'NO REMOTE REF' 'origin/main unavailable' \
     "Run './scripts/sync' to safely fetch and inspect origin/main."
   exit 0
 fi
 
-if ! counts=$(git -C "$repository" rev-list --left-right --count \
+if ! counts=$(git_probe rev-list --left-right --count \
   'HEAD...refs/remotes/origin/main' 2>/dev/null); then
   emit_status 'UNAVAILABLE' 'Git history unavailable' \
     'Inspect local and origin/main history manually before syncing.'

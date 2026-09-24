@@ -34,6 +34,12 @@ pass; no installer is run by those checks.
 The Bash command board is a presentation-only view: run `scripts/orbit` in an
 interactive terminal for its compact layout, or pipe `scripts/orbit help` for
 plain text. Neither path runs readiness probes or changes machine state.
+`scripts/orbit repo [path]` presents a wrapped status card in an interactive
+terminal. Piped output and `TERM=dumb` retain the three-field TSV format.
+It compares the checkout against main and cached origin/main. For another
+checkout, its next action refers to that checkout's Git workflow;
+Orbit's `scripts/sync` is recommended only for Orbit itself. This command
+inspects local state and cached `origin/main` without fetching or syncing.
 The map check covers mixed readiness, invalid declarations, manifest-free Git
 checkouts, symbolic-link exclusion, scan-limit disclosure, and unchanged
 project files. A ready row confirms only the checks described by `orbit enter`.

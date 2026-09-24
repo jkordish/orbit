@@ -110,7 +110,8 @@ class RepositoryStatusTests(unittest.TestCase):
 
         self.assertEqual(state, "BEHIND")
         self.assertEqual(detail, "1 commit behind")
-        self.assertIn("scripts/sync", action)
+        self.assertIn("fast-forward this checkout", action)
+        self.assertNotIn("scripts/sync", action)
 
     def test_local_commit_ahead_of_main_is_not_advised_to_sync(self):
         (self.checkout / "tracked.txt").write_text("local change\n")
@@ -146,7 +147,8 @@ class RepositoryStatusTests(unittest.TestCase):
 
         self.assertEqual(state, "OFF MAIN")
         self.assertEqual(detail, "branch codex/example")
-        self.assertIn("scripts/sync", action)
+        self.assertIn("switching branches in this checkout", action)
+        self.assertNotIn("scripts/sync", action)
         self.assertEqual(git(self.checkout, "branch", "--show-current").stdout.strip(), before)
 
     def test_detached_head_is_reported(self):
@@ -156,7 +158,8 @@ class RepositoryStatusTests(unittest.TestCase):
 
         self.assertEqual(state, "DETACHED")
         self.assertEqual(detail, "detached HEAD")
-        self.assertIn("scripts/sync", action)
+        self.assertIn("current commit", action)
+        self.assertNotIn("scripts/sync", action)
 
     def test_missing_cached_origin_main_is_reported_without_fetching(self):
         git(self.checkout, "update-ref", "-d", "refs/remotes/origin/main")
@@ -165,7 +168,8 @@ class RepositoryStatusTests(unittest.TestCase):
 
         self.assertEqual(state, "NO REMOTE REF")
         self.assertEqual(detail, "origin/main unavailable")
-        self.assertIn("scripts/sync", action)
+        self.assertIn("origin/main", action)
+        self.assertNotIn("scripts/sync", action)
         self.assertNotEqual(
             git(self.checkout, "show-ref", "--verify", "refs/remotes/origin/main", check=False).returncode,
             0,

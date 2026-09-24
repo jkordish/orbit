@@ -48,6 +48,9 @@ scope.
 - orbit map --git compares project checkouts only with their cached configured
   upstreams. Never fetch, sync, or publish from this view; preserve local work
   and avoid assuming every project uses main.
+- orbit repo inspects one checkout with cached refs and read-only Git options
+  that avoid index refresh. Recommend Orbit's sync command only for the Orbit
+  checkout; other repositories must use their own Git workflow.
 - scripts/enter reads bounded project declarations and probes local tools;
   it never executes project code or changes project or machine state.
 - scripts/orbit_core owns read-only status, plan, enter, and map report building.

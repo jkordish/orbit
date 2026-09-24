@@ -92,6 +92,7 @@ regardless of terminal settings.
 | ./scripts/plan | Read-only preview of profile selection and managed file changes |
 | ./scripts/enter [path] | Read-only project tool readiness view |
 | ./scripts/orbit map [source-directory] | Read-only readiness map of immediate child projects |
+| ./scripts/orbit repo [path] | Read-only main/origin/main state for one checkout |
 | ./scripts/check | Repository and language-template validation |
 | ./scripts/profiles --list | Show optional profiles |
 | ./scripts/services status | Inspect container service state |
