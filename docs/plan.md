@@ -37,9 +37,15 @@ logic to preview creates and changes. It displays destinations and backup
 intent, never file contents. A static Brewfile inventory summarizes base and
 selected profile formula, cask, and tap declarations. It highlights conditional
 and unparsed lines for source review without evaluating Ruby. These counts do
-not establish installed state or Homebrew's resolved action set. Runtime
-installation, macOS defaults, and services remain outside the preview, so
-setup remains the owner of those effects. Future receipts and restoration
+not establish installed state or Homebrew's resolved action set. The macOS
+preference preview reads the same scalar declarations that setup writes, showing
+the domain, key, type, and intended value. On macOS it compares current values
+and types in memory, reporting missing, different, and matching keys without
+printing existing values or creating backups. If a domain cannot be read, it
+marks the comparison for review and still shows the intended values. Setup
+snapshots the affected domains before writing every declared key. Runtime
+installation and services remain outside the preview, so setup remains the
+owner of those effects. Future receipts and restoration
 should reuse this change model and refuse to overwrite a destination that
 changed after Orbit applied it.
 

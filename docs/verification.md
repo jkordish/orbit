@@ -11,12 +11,15 @@ versions, it may read the Apple Foundation Models CLI license status; it never
 accepts system-wide terms.
 
 Run scripts/plan with optional `--profile` choices for a read-only preview of
-profile selection and managed user file changes. It reports paths and backup
-intent without displaying file contents or creating state. Its static Brewfile
+profile selection, managed user file changes, and macOS preferences. It reports
+paths and backup intent without displaying file contents or creating state.
+On macOS it compares the declared preference types and values with in-memory
+domain exports, showing differing keys without printing existing
+values. An unreadable domain is marked for review. Its static Brewfile
 inventory counts declared formulae, casks, and taps for the base and selected
 profiles and flags conditional or unparsed lines. It does not run Brewfile
 Ruby, ask Homebrew what is installed, or resolve package actions. Runtime
-installation, macOS defaults, and service effects remain outside this scope.
+installation and service effects remain outside this scope.
 
 Run `scripts/enter [project directory]` for a bounded, read-only project
 tooling check. It scans standard manifest names, reads only small version

@@ -47,7 +47,7 @@ command. Use `all` to include every optional profile currently defined in
       https://raw.githubusercontent.com/jkordish/orbit/main/install.sh | /bin/bash -s -- --profile all
 
 To inspect a checkout before changing the machine, clone Orbit and preview the
-selected profile and managed-file changes:
+selected profiles, managed-file changes, and macOS preference values:
 
     git clone https://github.com/jkordish/orbit.git ~/.config/orbit
     cd ~/.config/orbit
@@ -123,7 +123,7 @@ regardless of terminal settings.
 | ./setup | Full repeatable workstation provisioning |
 | ./scripts/apply | Install packages, runtimes, profiles, and managed configuration |
 | ./scripts/doctor | Read-only readiness report |
-| ./scripts/plan | Read-only preview of profiles, Brewfile declarations, and managed file changes |
+| ./scripts/plan | Read-only preview of profiles, Brewfile declarations, managed files, and macOS preferences |
 | ./scripts/enter [path] | Read-only project tool readiness view |
 | ./scripts/orbit map [source-directory] | Read-only readiness map of immediate child projects |
 | ./scripts/orbit repo [path] | Read-only main/origin/main state for one checkout |
@@ -152,11 +152,15 @@ before applying:
     ./setup --profile all
 
 The preview lists target paths and whether an existing file would be backed up;
-it never prints file contents. It also inventories the base and selected
-profile Brewfiles by formula, cask, and tap, and points out conditional or
-unrecognized declarations for review. These are source declarations, not a
-check of which packages are missing or what Homebrew will resolve. Full setup
-also installs packages and runtimes, applies macOS preferences, starts
+it never prints file contents. It also shows every macOS preference value that
+setup will write. These values come from the same declaration used by the
+preferences action. On macOS, it compares current values and types in memory
+and labels keys that differ; it never prints existing values. Setup backs up
+the affected domains and writes every declared key, including matching ones.
+It inventories the base and selected profile Brewfiles by formula, cask, and
+tap, and points out conditional or unrecognized declarations for review. These
+are source declarations, not a check of which packages are missing or what
+Homebrew will resolve. Full setup also installs packages and runtimes, starts
 services, and runs checks.
 
 To check a project before opening it, run `./scripts/orbit enter ~/src/example`

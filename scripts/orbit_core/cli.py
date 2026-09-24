@@ -11,7 +11,7 @@ from .state import ProfileError
 
 HELP = {
     "status": "Usage: orbit status [--docker] [--json]\nInspect machine readiness without changing it.",
-    "plan": "Usage: orbit plan [--profile NAME|all]... [--json]\nPreview profiles, Brewfile declarations, and managed file changes.",
+    "plan": "Usage: orbit plan [--profile NAME|all]... [--json]\nPreview profiles, Brewfile declarations, managed files, and macOS preferences.",
     "enter": "Usage: orbit enter [PROJECT_DIRECTORY] [--json]\nInspect local project tooling without running project code.",
     "map": "Usage: orbit map [SOURCE_DIRECTORY] [--git] [--needs] [--json]\nMap project tooling, cached Git state, and detected stacks.",
     "projects": "Usage: orbit projects [--json]\nInventory project manifest filenames without opening their contents.",

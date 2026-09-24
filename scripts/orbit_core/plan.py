@@ -1,11 +1,13 @@
-"""Read-only preview of profile selection and managed configuration."""
+"""Read-only preview of profile selection and workstation configuration."""
 
 from __future__ import annotations
 
 import os
+import plistlib
 import re
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 from .report import Report, Row
@@ -18,6 +20,7 @@ class PlanError(Exception):
 
 PACKAGE_LINE = re.compile(r"(brew|cask|tap)\s+(['\"])([^'\"]+)\2(?:\s+(.*))?")
 MAX_MANIFEST_BYTES = 128 * 1024
+MAX_DEFAULTS_BYTES = 1024 * 1024
 
 
 def _count(amount: int, singular: str, plural: str) -> str:
@@ -103,6 +106,90 @@ def _managed_files(root: Path) -> list[Row]:
     return rows or [Row("Managed files", "REVIEW", "Configurator", "No preview returned")]
 
 
+def _current_preferences(domains: set[str]) -> dict[str, dict[str, object] | None]:
+    """Read complete domains into memory without printing existing values."""
+    observed: dict[str, dict[str, object] | None] = {}
+    for domain in sorted(domains):
+        try:
+            result = subprocess.run(
+                ["/usr/bin/defaults", "export", domain, "-"],
+                capture_output=True, check=False, timeout=5,
+            )
+            if result.returncode != 0 or len(result.stdout) > MAX_DEFAULTS_BYTES:
+                observed[domain] = None
+                continue
+            content = plistlib.loads(result.stdout)
+            observed[domain] = content if isinstance(content, dict) else None
+        except (OSError, subprocess.TimeoutExpired, plistlib.InvalidFileException, ValueError):
+            observed[domain] = None
+    return observed
+
+
+def _macos_preferences(root: Path) -> tuple[list[Row], int]:
+    """Compare the action's scalar declarations with local macOS values where possible."""
+    action = root / "scripts/macos-defaults"
+    if action.is_symlink() or not action.is_file():
+        return [Row("macOS preferences", "REVIEW", "Action",
+                    "scripts/macos-defaults is unavailable or a symbolic link")], 0
+    environment = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+    try:
+        result = subprocess.run(
+            ["/bin/bash", str(action), "--plan"], cwd=root, env=environment,
+            capture_output=True, text=True, check=False, timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return [Row("macOS preferences", "REVIEW", "Action",
+                    "Preference preview could not run; inspect scripts/macos-defaults")], 0
+    if result.returncode != 0:
+        return [Row("macOS preferences", "REVIEW", "Action",
+                    "Preference preview failed; inspect scripts/macos-defaults")], 0
+
+    rows: list[Row] = []
+    declarations: list[tuple[str, str, str, str, object]] = []
+    for number, line in enumerate(result.stdout.splitlines(), start=1):
+        parts = line.split("\t")
+        if len(parts) != 4 or not all(parts) or parts[2] not in {"bool", "int", "string"}:
+            rows.append(Row("macOS preferences", "REVIEW", f"Declaration {number}",
+                            "Unrecognized preference declaration; inspect scripts/macos-defaults"))
+            continue
+        domain, key, value_type, value = parts
+        if value_type == "bool" and value not in {"true", "false"}:
+            rows.append(Row("macOS preferences", "REVIEW", f"Declaration {number}",
+                            "Invalid boolean preference; inspect scripts/macos-defaults"))
+            continue
+        try:
+            expected: object = ({"true": True, "false": False}[value] if value_type == "bool"
+                                else int(value) if value_type == "int" else value)
+        except ValueError:
+            rows.append(Row("macOS preferences", "REVIEW", f"Declaration {number}",
+                            "Invalid integer preference; inspect scripts/macos-defaults"))
+            continue
+        declarations.append((domain, key, value_type, value, expected))
+
+    current = (_current_preferences({item[0] for item in declarations})
+               if sys.platform == "darwin" else {})
+    if sys.platform == "darwin":
+        for domain, content in current.items():
+            if content is None:
+                rows.append(Row("macOS preferences", "REVIEW", domain,
+                                "Current values unavailable; showing declared values only"))
+    missing = object()
+    for domain, key, value_type, value, expected in declarations:
+        content = current.get(domain)
+        if content is None:
+            state = "PREVIEW"
+        else:
+            actual = content.get(key, missing)
+            state = ("CREATE" if actual is missing else "MATCH"
+                     if type(actual) is type(expected) and actual == expected else "CHANGE")
+        rows.append(Row("macOS preferences", state, key,
+                        f"{domain} · {value_type} {value}"))
+    if not rows:
+        rows.append(Row("macOS preferences", "REVIEW", "Action",
+                        "No preference declarations returned"))
+    return rows, len(declarations)
+
+
 def build_report(root: Path, arguments: list[str]) -> Report:
     existing = resolve_profiles(root, [])
     desired = resolve_profiles(root, arguments)
@@ -115,7 +202,15 @@ def build_report(root: Path, arguments: list[str]) -> Report:
     package_rows, declarations = _package_scope(root, desired)
     rows.extend(package_rows)
     rows.extend(_managed_files(root))
-    changes = sum(row.state in {"CREATE", "CHANGE", "COPY"} for row in rows)
+    preference_rows, preferences = _macos_preferences(root)
+    rows.extend(preference_rows)
+    changes = sum(row.group == "Managed files" and row.state in {"CREATE", "CHANGE", "COPY"}
+                  for row in rows)
+    preference_changes = sum(row.state in {"CREATE", "CHANGE"} for row in preference_rows)
+    preference_summary = _count(preferences, "macOS preference", "macOS preferences")
+    if preferences and all(row.state in {"CREATE", "CHANGE", "MATCH"}
+                           for row in preference_rows):
+        preference_summary += f" ({_count(preference_changes, 'difference', 'differences')})"
     new_profiles = [name for name in desired if name not in existing]
     flags = " ".join(f"--profile {shlex.quote(name)}" for name in new_profiles)
     action = f"cd {shlex.quote(str(root))} && ./setup"
@@ -125,10 +220,13 @@ def build_report(root: Path, arguments: list[str]) -> Report:
         command="plan", title="PLAN", status="PREVIEW",
         summary=(f"{_count(len(new_profiles), 'new profile', 'new profiles')} · "
                  f"{_count(changes, 'managed file change', 'managed file changes')} · "
-                 f"{_count(declarations, 'Homebrew declaration', 'Homebrew declarations')}"),
+                 f"{_count(declarations, 'Homebrew declaration', 'Homebrew declarations')} · "
+                 f"{preference_summary}"),
         next_action=action,
-        notes=["Static source inventory: no Ruby evaluation, installed-state check, or package resolution.",
+        notes=["Homebrew inventory is static: no Ruby evaluation, installed-state check, or package resolution.",
                "Managed file preview shows destinations and backup intent, never file or backup contents.",
-               "Setup also installs runtimes, applies macOS preferences, and starts services."],
+               "macOS preferences compare current values where readable; existing values stay private.",
+               "Setup backs up affected preference domains, then writes every declared key.",
+               "Setup also installs runtimes and starts services."],
         rows=rows,
     )
