@@ -39,7 +39,7 @@ Explicit actions
   ${color_amber}sync${color_reset}        Safely return this checkout to main
   ${color_amber}services${color_reset}    Govern container runtimes
   ${color_amber}check${color_reset}       Run repository validation
-  ${color_amber}new${color_reset}         Create a starter project
+  ${color_amber}new${color_reset}         Browse or create a starter project
   ${color_amber}update${color_reset}      Update packages from a clean checkout
 
 Examples
@@ -52,6 +52,7 @@ Examples
   orbit map ~/src
   orbit map ~/src --git
   orbit plan --profile all
+  orbit new --list
   orbit new python morning-brief ~/src --git --commit
   orbit sync
   orbit services status
@@ -139,7 +140,7 @@ usage_tty() {
   usage_item 'sync' 'Safely return to main' "$color_amber" "$width"
   usage_item 'services' 'Manage container runtimes' "$color_amber" "$width"
   usage_item 'check' 'Validate this repository' "$color_amber" "$width"
-  usage_item 'new' 'Create a starter project' "$color_amber" "$width"
+  usage_item 'new' 'Browse or create a starter project' "$color_amber" "$width"
   usage_item 'update' 'Update packages from clean Git' "$color_amber" "$width"
 
   printf '\n  %sTRY NEXT%s\n' "$color_indigo" "$color_reset"

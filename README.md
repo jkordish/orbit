@@ -258,14 +258,18 @@ normal setup.
 
 ## Starter projects
 
-The starter command creates Python, TypeScript, Rust, Go, or Nix projects. It
+The starter command creates Python, TypeScript, Rust, Go, or Nix projects. Run
+`orbit new` in a terminal to browse the starters, or use `orbit new --list` to
+list them explicitly. The interactive catalog and creation receipt use Orbit's
+responsive layout; piped output retains its plain format. Creation receipts
+show the new directory, the exact Git state, and a next command. The command
 copies no caches, virtual environments, or build output. New projects include
 shared AGENTS.md guidance and a .gitignore that excludes local assistant
 sessions and generated notes while leaving shared instructions trackable.
 
     mkdir -p ~/src
-    ./scripts/new-project --list
-    ./scripts/new-project python example ~/src --git --commit
+    ./scripts/orbit new --list
+    ./scripts/orbit new python example ~/src --git --commit
 
 The templates use lockfiles and document their checks. The Nix template asks
 you to create and commit flake.lock for a specific project before sharing it.

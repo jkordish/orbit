@@ -59,6 +59,9 @@ scope.
   checkout; other repositories must use their own Git workflow.
 - scripts/enter reads bounded project declarations and probes local tools;
   it never executes project code or changes project or machine state.
+- orbit new without arguments opens a starter catalog on interactive terminals.
+  Creating a project retains the plain piped output contract and never
+  overwrites an existing destination or creates a remote.
 - scripts/orbit_core owns read-only status, plan, projects, enter, and map report building.
   Keep its text and JSON results aligned, avoid project code execution, and
   preserve exit codes. The Bash installer/setup and recovery paths must work

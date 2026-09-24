@@ -1,12 +1,16 @@
 """Create a named project from a starter template."""
 
 import argparse
+import os
 import re
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+
+from orbit_core.report import Report, Row, render
 
 TEMPLATES_ROOT = Path(__file__).resolve().parents[1] / "templates"
 TEMPLATE_DESCRIPTIONS = {
@@ -162,7 +166,71 @@ def create_project(template, name, parent, initialize_git=False, initial_commit=
     return destination
 
 
+def interactive_output():
+    """Use visual reports only when the terminal can display them."""
+    return sys.stdout.isatty() and os.environ.get("TERM") != "dumb"
+
+
+def show_catalog():
+    if not interactive_output():
+        print("Available project starters:")
+        for template, description in TEMPLATE_DESCRIPTIONS.items():
+            print(f"  {template:<12} {description}")
+        return
+
+    render(Report(
+        command="new", title="STARTERS", status="PREVIEW",
+        summary=f"{len(TEMPLATE_DESCRIPTIONS)} project starters, ready to copy into an empty destination.",
+        next_action="orbit new python my-app ~/src --git --commit",
+        notes=["Choose an existing parent directory; existing destinations are refused.",
+               "Each starter includes a README, shared AGENTS.md, and a local-data .gitignore."],
+        rows=[Row("Starters", "AVAILABLE", name, description)
+              for name, description in TEMPLATE_DESCRIPTIONS.items()],
+    ))
+
+
+def show_created(args, destination):
+    project_path = shlex.quote(str(destination))
+    if not interactive_output():
+        print("ORBIT / NEW PROJECT")
+        print(f"  Created {args.template} project {args.name!r} at {destination}")
+        print("  Read README.md and AGENTS.md; install tools and dependencies when ready.")
+        if args.git:
+            if args.commit:
+                print("  Initialized Git on main and created the initial commit; no remote was created.")
+            else:
+                print("  Initialized an empty Git repository on main; no commit or remote was created.")
+        else:
+            print(f"  Initialize Git explicitly with: cd {project_path} "
+                  "&& git init --initial-branch=main")
+        return
+
+    if args.commit:
+        git_state, git_detail = "COMMITTED", "Initial commit on main; no remote created"
+        next_action = f"cd {project_path} && cat README.md"
+    elif args.git:
+        git_state, git_detail = "INITIALIZED", "Empty main branch; no commit or remote created"
+        next_action = f"cd {project_path} && git status"
+    else:
+        git_state, git_detail = "NOT STARTED", "Initialize explicitly when ready"
+        next_action = f"cd {project_path} && git init --initial-branch=main"
+    render(Report(
+        command="new", title="NEW PROJECT", status="CREATED",
+        summary=f"{args.name} is in place. Its dependencies have not been installed.",
+        next_action=next_action,
+        notes=["Read README.md and AGENTS.md before installing project dependencies.",
+               "Orbit left any remote and hosting choices to you."],
+        rows=[Row("Project", "CREATED", args.name, TEMPLATE_DESCRIPTIONS[args.template]),
+              Row("Project", "FOUND", "Directory", str(destination)),
+              Row("Git", git_state, "Local repository", git_detail)],
+    ))
+
+
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if not argv and interactive_output():
+        show_catalog()
+        return 0
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog="Example: ./scripts/new-project python morning-brief ~/src --git --commit",
@@ -186,9 +254,7 @@ def main(argv=None):
     if args.list:
         if any((args.template, args.name, args.parent, args.git, args.commit)):
             parser.error("--list cannot be combined with project or Git arguments")
-        print("Available project starters:")
-        for template, description in TEMPLATE_DESCRIPTIONS.items():
-            print(f"  {template:<12} {description}")
+        show_catalog()
         return 0
 
     if not all((args.template, args.name, args.parent)):
@@ -207,20 +273,7 @@ def main(argv=None):
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
-    print("ORBIT / NEW PROJECT")
-    print(f"  Created {args.template} project {args.name!r} at {destination}")
-    print("  Read README.md and AGENTS.md; install tools and dependencies when ready.")
-    if args.git:
-        if args.commit:
-            print("  Initialized Git on main and created the initial commit; no remote was created.")
-        else:
-            print("  Initialized an empty Git repository on main; no commit or remote was created.")
-    else:
-        project_path = shlex.quote(str(destination))
-        print(
-            f"  Initialize Git explicitly with: cd {project_path} "
-            "&& git init --initial-branch=main"
-        )
+    show_created(args, destination)
     return 0
 
 

@@ -52,6 +52,11 @@ manual-review items.
 descriptions without installing packages. The interactive catalog does not
 establish package readiness; piped `scripts/profiles --list` retains its plain
 format for scripts.
+`orbit new` shows the starter catalog on an interactive terminal; `--list`
+does the same explicitly. Starter creation uses the shared visual report for
+interactive receipts, with directory, local Git state, and next action.
+Piped starter output keeps its previous format, and `orbit new` without
+arguments still reports usage when piped. No catalog view creates a project.
 The map check covers mixed readiness, invalid declarations, manifest-free Git
 checkouts, symbolic-link exclusion, scan-limit disclosure, and unchanged
 project files. A ready row confirms only the checks described by `orbit enter`.
