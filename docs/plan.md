@@ -45,3 +45,20 @@ toolchains. Small, explicit version declarations are compared with local tools;
 unparsed ranges remain review items. A root `.orbit.json` can request only
 known Orbit profiles and container services. Orbit never runs project hooks,
 installs project dependencies, or changes a project checkout during entry.
+
+## Command architecture
+
+`install.sh`, `bootstrap.command`, `setup`, and package actions remain Bash
+entrypoints. They can run before Orbit's managed Python is installed and retain
+their serialized, backup-aware setup behavior. `scripts/orbit` remains the
+single command front door. Its read-only `status`, `plan`, and `enter` commands
+use `scripts/orbit_core/`, a Python standard-library package compatible with
+the Command Line Tools Python. The Bash wrappers select that interpreter and
+disable bytecode writes. Recovery inventory and Git synchronization remain
+separate Bash commands with their established safety contracts.
+
+The core builds a structured report first, then renders text or schema-versioned
+JSON. Each row has a group, state, label, and detail. Exit codes retain their
+meaning: 0 for ready or a successful preview, 1 for action needed or a failed
+check, and 2 for invalid input. JSON is an output view of the same checks; it
+does not trigger setup, service changes, or project code.

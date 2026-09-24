@@ -1,5 +1,4 @@
 #!/bin/bash
-# Inspect one project without evaluating its code or changing machine state.
 set -euo pipefail
-ORBIT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
-exec python3 "$ORBIT_ROOT/scripts/enter.py" "$@"
+ORBIT_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+exec "$ORBIT_ROOT/scripts/orbit-python" enter "$@"

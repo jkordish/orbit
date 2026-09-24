@@ -1,0 +1,19 @@
+#!/bin/bash
+# Read-only Python core; the installer and provisioning path remain shell-native.
+set -euo pipefail
+if [ "${1:-}" = status ]; then
+  # Doctor has always used Orbit's managed command path.
+  source "$(dirname "$0")/env.sh"
+else
+  ORBIT_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+fi
+if [ -x /usr/bin/python3 ]; then
+  orbit_python=/usr/bin/python3
+else
+  orbit_python=$(command -v python3) || {
+    echo 'Python 3 is needed for Orbit views; install Apple Command Line Tools first.' >&2
+    exit 1
+  }
+fi
+export PYTHONDONTWRITEBYTECODE=1
+exec "$orbit_python" "$ORBIT_ROOT/scripts/orbit_cli.py" "$@"

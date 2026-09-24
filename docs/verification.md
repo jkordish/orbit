@@ -23,6 +23,14 @@ requested service status. It never executes project code or installs anything.
 The result does not establish dependency, build, test, or application health.
 Selected profiles are checked by name; their packages are not verified here.
 
+The read-only `status`, `plan`, and `enter` views use the standard-library
+Python core. `--json` returns the same report as text with `schema_version: 1`,
+including exit code and next action. The wrappers disable Python bytecode
+writes. `scripts/check` exercises text/JSON rendering, invalid arguments,
+profile previews in an isolated home, project entry, and doctor check results
+with local probes stubbed. The real doctor can still report missing installed
+tools after repository checks pass; no installer is run by those checks.
+
 The full setup workflow has additional machine effects: it bootstraps Homebrew,
 installs selected packages and runtimes, configures managed user settings,
 applies backed-up macOS defaults, starts Apple's container service, runs a

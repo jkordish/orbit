@@ -59,10 +59,24 @@ A normal ./setup reconciles from the beginning. For a read-only readiness
 report, run ./scripts/doctor. To install packages and configure dotfiles
 without the full service and smoke-check phases, use ./scripts/apply.
 
+The `./scripts/orbit` command groups the day-to-day views and explicit actions.
+Its read-only `status`, `plan`, and `enter` views share a Python core and support
+`--json` for scripts and integrations:
+
+    ./scripts/orbit status --json
+    ./scripts/orbit plan --profile wasm --json
+    ./scripts/orbit enter ~/src/example --json
+
+JSON reports use schema version 1 and contain a status, rows, a next action,
+and an exit code matching the command result. The core uses only the Python
+standard library and runs without creating a virtual environment. The curl
+installer and initial provisioning remain Bash so they can bootstrap Python.
+
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
+| ./scripts/orbit | Unified command center for views and explicit actions |
 | ./setup | Full repeatable workstation provisioning |
 | ./scripts/apply | Install packages, runtimes, profiles, and managed configuration |
 | ./scripts/doctor | Read-only readiness report |

@@ -40,6 +40,7 @@ Explicit actions
 
 Examples
   orbit status --docker
+  orbit status --json
   orbit repo ~/src/my-project
   orbit enter ~/src/my-project
   orbit plan --profile all
@@ -48,8 +49,8 @@ Examples
   orbit services status
   orbit services sleep
 
-Every command keeps its existing safety contract. Actions are never inferred
-from a status view; use the explicit subcommand when you want one.
+Read-only status, enter, and plan also support --json. Actions are never
+inferred from a view; use the explicit subcommand when you want one.
 EOF
 }
 

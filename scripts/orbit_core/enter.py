@@ -13,10 +13,12 @@ import shlex
 import shutil
 import stat
 import subprocess
-import sys
 from pathlib import Path
 
-ORBIT_ROOT = Path(__file__).resolve().parents[1]
+from .report import Report, Row
+from .state import selected_profiles
+
+ORBIT_ROOT = Path(__file__).resolve().parents[2]
 MAX_FILE_BYTES = 128 * 1024
 MAX_DIRS = 256
 MAX_MANIFESTS = 96
@@ -228,12 +230,7 @@ def project_requirements(
 
 
 def installed_profiles() -> set[str]:
-    names: set[str] = set()
-    for path in (ORBIT_ROOT / "config/profiles.txt", ORBIT_ROOT / ".state/profiles.txt"):
-        if path.is_file() and not path.is_symlink():
-            names.update(line.strip() for line in path.read_text(encoding="utf-8").splitlines()
-                         if line.strip() and not line.lstrip().startswith("#"))
-    return names
+    return set(selected_profiles(ORBIT_ROOT))
 
 
 def probe(command: str, *arguments: str) -> tuple[bool, str]:
@@ -291,7 +288,7 @@ def satisfies(actual: tuple[int, ...], requirement: str) -> bool | None:
     return True
 
 
-def report(root: Path) -> int:
+def build_report(root: Path) -> Report:
     stacks, declarations, reviews = scan(root)
     versions, profiles, services = project_requirements(root, stacks, declarations, reviews)
     required = set(stacks)
@@ -411,26 +408,20 @@ def report(root: Path) -> int:
     for issue in reviews:
         checks.append(("REVIEW", "declaration", issue))
 
-    print("ORBIT / ENTER")
-    print(f"Project  {display(root)}")
-    print("Scope    Local toolchains, profile selection, and requested services only")
-    print("Scan     Project root and two directory levels; generated folders skipped")
-    print("         No project code, dependencies, builds, or services were changed.\n")
-    print("STACK")
+    rows: list[Row] = []
     if stacks:
         for name, paths in stacks.items():
-            preview = ", ".join(display(path.relative_to(root)) for path in paths[:3])
+            preview = ", ".join(str(path.relative_to(root)) for path in paths[:3])
             suffix = f" (+{len(paths) - 3} more)" if len(paths) > 3 else ""
-            print(f"  {name:<10} {preview}{suffix}")
+            rows.append(Row("Stack", "DETECTED", name, f"{preview}{suffix}"))
     elif declarations or profiles or services:
-        print("  Project declarations only")
+        rows.append(Row("Stack", "DECLARED", "Project requirements", "No language manifests"))
     else:
-        print("  No recognized manifests or .orbit.json requirements")
-    print("\nREADINESS")
+        rows.append(Row("Stack", "REVIEW", "No recognized manifests", "Add a supported manifest or .orbit.json"))
     for state, name, detail in checks:
-        print(f"  {state:<8} {name:<17} {detail}")
+        rows.append(Row("Readiness", state, name, detail))
     if not checks:
-        print("  REVIEW   No project tooling requirements found")
+        rows.append(Row("Readiness", "REVIEW", "No requirements", "Project tooling cannot be confirmed"))
 
     command_root = shlex.quote(str(ORBIT_ROOT))
     if missing_profiles:
@@ -452,28 +443,11 @@ def report(root: Path) -> int:
     else:
         next_action = "Open the project; run its own dependency and build checks when needed"
     ready = bool(checks) and not (missing_base or missing_service or missing_special or mismatch or reviews or missing_profiles)
-    print(f"\n{'TOOLING READY' if ready else 'ACTION NEEDED'}")
-    print(f"Next     {next_action}")
-    return 0 if ready else 1
-
-
-def main(arguments: list[str]) -> int:
-    if arguments == ["--help"]:
-        print("Usage: orbit enter [PROJECT_DIRECTORY]\nInspect local project tooling without running project code.")
-        return 0
-    if len(arguments) > 1 or (arguments and arguments[0].startswith("-")):
-        print("Usage: orbit enter [PROJECT_DIRECTORY]", file=sys.stderr)
-        return 2
-    root = Path(arguments[0] if arguments else ".").expanduser().resolve()
-    if not root.is_dir():
-        print(f"orbit enter: no project directory at {root}", file=sys.stderr)
-        return 2
-    try:
-        return report(root)
-    except (InputError, OSError, UnicodeError) as error:
-        print(f"orbit enter: {error}", file=sys.stderr)
-        return 2
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    return Report(
+        command="enter", title="PROJECT ENTRY", status="TOOLING READY" if ready else "ACTION NEEDED",
+        summary="Local project tooling", next_action=next_action, exit_code=0 if ready else 1,
+        notes=[f"Project: {root}", "Scope: toolchains, profile selection, and requested services",
+               "Scan: project root and two directory levels; generated folders skipped",
+               "Project code, dependencies, builds, and services were unchanged."],
+        rows=rows,
+    )

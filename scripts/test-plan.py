@@ -1,5 +1,6 @@
 """Check the read-only plan and resume argument guard in an isolated home."""
 
+import json
 import os
 import shutil
 import subprocess
@@ -15,8 +16,9 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
     (root / "scripts").mkdir(parents=True)
     (root / "config").mkdir()
     (root / "profiles").mkdir()
-    for filename in ("env.sh", "profiles", "configure", "configure.py", "plan"):
+    for filename in ("env.sh", "profiles", "configure", "configure.py", "plan", "orbit-python", "orbit_cli.py"):
         shutil.copy2(source / "scripts" / filename, root / "scripts" / filename)
+    shutil.copytree(source / "scripts/orbit_core", root / "scripts/orbit_core", ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copy2(source / "setup", root / "setup")
     for brewfile in (source / "profiles").glob("*.Brewfile"):
         shutil.copy2(brewfile, root / "profiles" / brewfile.name)
@@ -31,11 +33,13 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
             check=False,
         )
 
-    preview = run("scripts/plan", "--profile", "all")
+    preview = run("scripts/plan", "--profile", "all", "--json")
     assert preview.returncode == 0, preview.stderr
-    assert preview.stdout.count("SELECT ") == 6
-    assert "MANAGED FILES" in preview.stdout
-    assert "CREATE" in preview.stdout
+    report = json.loads(preview.stdout)
+    assert report["schema_version"] == 1
+    assert sum(row["state"] == "SELECT" for row in report["rows"]) == 6
+    assert any(row["group"] == "Managed files" for row in report["rows"])
+    assert any(row["state"] == "CREATE" for row in report["rows"])
     assert not (root / ".state").exists()
     assert not (home / ".config").exists()
 
@@ -51,10 +55,11 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
 
     selected = run("scripts/profiles", "--select", "--profile", "cloud")
     assert selected.returncode == 0, selected.stderr
-    preview = run("scripts/plan", "--profile", "all")
+    preview = run("scripts/plan", "--profile", "all", "--json")
     assert preview.returncode == 0, preview.stderr
-    assert "ENABLED cloud" in preview.stdout
-    assert preview.stdout.count("SELECT ") == 5
+    report = json.loads(preview.stdout)
+    assert any(row["state"] == "ENABLED" and row["label"] == "cloud" for row in report["rows"])
+    assert sum(row["state"] == "SELECT" for row in report["rows"]) == 5
 
     (root / ".state/provision-state").write_text("phase=complete\n")
     resumed_with_profile = run("setup", "--resume", "--profile", "all")

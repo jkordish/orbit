@@ -1,17 +1,13 @@
 """Focused checks for the read-only project entry view."""
 
 import contextlib
-import importlib.util
 import io
 import json
 import tempfile
 from pathlib import Path
 from unittest import mock
 
-spec = importlib.util.spec_from_file_location("orbit_enter", Path(__file__).with_name("enter.py"))
-assert spec and spec.loader
-enter = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(enter)
+from orbit_core import cli, enter
 
 
 def inspect(project, orbit, answers, selected=""):
@@ -31,7 +27,7 @@ def inspect(project, orbit, answers, selected=""):
     with mock.patch.object(enter, "ORBIT_ROOT", orbit), mock.patch.object(enter, "probe", fake_probe), \
             mock.patch.object(enter.shutil, "which", lambda command: f"/fake/{command}"), \
             contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
-        code = enter.main([str(project)])
+        code = cli.main(["enter", str(project)])
     after = sorted((str(path.relative_to(project)), path.stat().st_mtime_ns)
                    for path in project.rglob("*") if path.is_file())
     assert before == after, "enter changed a project file"
@@ -78,23 +74,23 @@ with tempfile.TemporaryDirectory(prefix="orbit enter ") as temporary:
     assert not (project / "SHOULD_NOT_EXIST").exists()
 
     code, result = inspect(project, orbit, answers)
-    assert code == 1 and "SELECT   profile/wasm" in result, result
+    assert code == 1 and "SELECT" in result and "profile/wasm" in result, result
     assert "./setup --profile wasm" in result, result
 
     mismatched = dict(answers, node=(True, "v18.0.0"))
     code, result = inspect(project, orbit, mismatched, "wasm\n")
-    assert code == 1 and "MISMATCH Node" in result, result
+    assert code == 1 and "MISMATCH" in result and "Node" in result, result
 
     old_python_pin = (project / ".python-version").read_text()
     (project / ".python-version").unlink()
     old_python = dict(answers, python3=(True, "Python 3.11.8"))
     code, result = inspect(project, orbit, old_python, "wasm\n")
-    assert code == 1 and "MISMATCH Python" in result, result
+    assert code == 1 and "MISMATCH" in result and "Python" in result, result
     (project / ".python-version").write_text(old_python_pin)
 
     old_swift = dict(answers, xcrun=(True, "Apple Swift version 5.9"))
     code, result = inspect(project, orbit, old_swift, "wasm\n")
-    assert code == 1 and "MISMATCH Swift" in result, result
+    assert code == 1 and "MISMATCH" in result and "Swift" in result, result
 
     remote_context = dict(answers, docker_context=(True, "ssh://remote.example"))
     code, result = inspect(project, orbit, remote_context, "wasm\n")
