@@ -6,7 +6,7 @@ shell_scripts=(bootstrap.command install.sh setup scripts/apply scripts/configur
 for script in "${shell_scripts[@]}"; do bash -n "$script"; done
 shellcheck -x "${shell_scripts[@]}"
 zsh -n config/shell.zsh
-python_sources=(templates/python scripts/configure.py scripts/rust-tools.py scripts/test-ai-ignore.py scripts/test-starship-trust.py scripts/test-repository-status.py scripts/new_project.py scripts/test-new-project.py scripts/test-recovery.py scripts/test-plan.py scripts/test-enter.py scripts/test-orbit-core.py scripts/orbit_cli.py scripts/orbit_core)
+python_sources=(templates/python scripts/configure.py scripts/rust-tools.py scripts/test-ai-ignore.py scripts/test-starship-trust.py scripts/test-repository-status.py scripts/new_project.py scripts/test-new-project.py scripts/test-recovery.py scripts/test-plan.py scripts/test-enter.py scripts/test-workspace.py scripts/test-orbit-core.py scripts/orbit_cli.py scripts/orbit_core)
 uv run --locked --project templates/python ruff check "${python_sources[@]}"
 uv run --locked --project templates/python mypy templates/python
 uv run --locked --project templates/python mypy scripts/orbit_core scripts/orbit_cli.py
@@ -14,6 +14,7 @@ uv run --locked --project templates/python pytest -q templates/python
 uv run --locked --project templates/python python scripts/test-configure.py
 uv run --locked --project templates/python python scripts/test-plan.py
 uv run --locked --project templates/python python scripts/test-enter.py
+uv run --locked --project templates/python python scripts/test-workspace.py
 uv run --locked --project templates/python python scripts/test-orbit-core.py
 ./scripts/profiles --verify-catalog
 uv run --locked --project templates/python python scripts/test-relocation.py

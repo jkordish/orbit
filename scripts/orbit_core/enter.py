@@ -13,6 +13,7 @@ import shlex
 import shutil
 import stat
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 
 from .report import Report, Row
@@ -43,6 +44,7 @@ MANIFESTS = {
 }
 DECLARATIONS = {"rust-toolchain", "rust-toolchain.toml", ".python-version"}
 TOOL_ORDER = ("Rust", "Node", "Go", "Python", "Swift", "Xcode", "Nix", "Docker", "container")
+ScanResult = tuple[dict[str, list[Path]], list[Path], list[str]]
 
 
 class InputError(Exception):
@@ -68,7 +70,7 @@ def read_small(path: Path) -> str:
         raise InputError(f"cannot safely read {display(path.name)}: {reason}") from error
 
 
-def scan(root: Path) -> tuple[dict[str, list[Path]], list[Path], list[str]]:
+def scan(root: Path) -> ScanResult:
     stacks: dict[str, list[Path]] = {}
     declarations: list[Path] = []
     reviews: list[str] = []
@@ -93,7 +95,7 @@ def scan(root: Path) -> tuple[dict[str, list[Path]], list[Path], list[str]]:
                     reviews.append(f"Skipped symbolic link {display(path.relative_to(root))}")
                 continue
             if path.is_dir():
-                if name.endswith(".xcodeproj"):
+                if name.endswith((".xcodeproj", ".xcworkspace")):
                     stacks.setdefault("Xcode", []).append(path)
                 elif depth < 2 and name not in SKIP_DIRS and not name.startswith("."):
                     queue.append((path, depth + 1))
@@ -233,6 +235,7 @@ def installed_profiles() -> set[str]:
     return set(selected_profiles(ORBIT_ROOT))
 
 
+@lru_cache(maxsize=64)
 def probe(command: str, *arguments: str) -> tuple[bool, str]:
     if shutil.which(command) is None:
         return False, "command unavailable"
@@ -288,8 +291,9 @@ def satisfies(actual: tuple[int, ...], requirement: str) -> bool | None:
     return True
 
 
-def build_report(root: Path) -> Report:
-    stacks, declarations, reviews = scan(root)
+def build_report(root: Path, *, inventory: ScanResult | None = None) -> Report:
+    stacks, declarations, reviews = inventory if inventory is not None else scan(root)
+    reviews = list(reviews)
     versions, profiles, services = project_requirements(root, stacks, declarations, reviews)
     required = set(stacks)
     if any(path.name.startswith("rust-toolchain") for path in declarations):

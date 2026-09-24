@@ -45,13 +45,18 @@ toolchains. Small, explicit version declarations are compared with local tools;
 unparsed ranges remain review items. A root `.orbit.json` can request only
 known Orbit profiles and container services. Orbit never runs project hooks,
 installs project dependencies, or changes a project checkout during entry.
+`orbit map` reuses that inspection to summarize immediate child projects under
+one source directory. It shows an empty Git checkout as a review item, limits
+the scan to 128 child directories, reports incomplete coverage, and directs the
+user to `orbit enter` for detail. The existing `orbit projects` command remains
+a manifest-filename inventory that does not open project declarations.
 
 ## Command architecture
 
 `install.sh`, `bootstrap.command`, `setup`, and package actions remain Bash
 entrypoints. They can run before Orbit's managed Python is installed and retain
 their serialized, backup-aware setup behavior. `scripts/orbit` remains the
-single command front door. Its read-only `status`, `plan`, and `enter` commands
+single command front door. Its read-only `status`, `plan`, `enter`, and `map` commands
 use `scripts/orbit_core/`, a Python standard-library package compatible with
 the Command Line Tools Python. The Bash wrappers select that interpreter and
 disable bytecode writes. Recovery inventory and Git synchronization remain

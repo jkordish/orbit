@@ -23,13 +23,16 @@ requested service status. It never executes project code or installs anything.
 The result does not establish dependency, build, test, or application health.
 Selected profiles are checked by name; their packages are not verified here.
 
-The read-only `status`, `plan`, and `enter` views use the standard-library
+The read-only `status`, `plan`, `enter`, and `map` views use the standard-library
 Python core. `--json` returns the same report as text with `schema_version: 1`,
 including exit code and next action. The wrappers disable Python bytecode
 writes. `scripts/check` exercises text/JSON rendering, invalid arguments,
 profile previews in an isolated home, project entry, and doctor check results
 with local probes stubbed. The real doctor can still report missing installed
 tools after repository checks pass; no installer is run by those checks.
+The map check covers mixed readiness, invalid declarations, manifest-free Git
+checkouts, symbolic-link exclusion, scan-limit disclosure, and unchanged
+project files. A ready row confirms only the checks described by `orbit enter`.
 
 The full setup workflow has additional machine effects: it bootstraps Homebrew,
 installs selected packages and runtimes, configures managed user settings,

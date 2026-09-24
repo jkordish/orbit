@@ -60,12 +60,13 @@ report, run ./scripts/doctor. To install packages and configure dotfiles
 without the full service and smoke-check phases, use ./scripts/apply.
 
 The `./scripts/orbit` command groups the day-to-day views and explicit actions.
-Its read-only `status`, `plan`, and `enter` views share a Python core and support
+Its read-only `status`, `plan`, `enter`, and `map` views share a Python core and support
 `--json` for scripts and integrations:
 
     ./scripts/orbit status --json
     ./scripts/orbit plan --profile wasm --json
     ./scripts/orbit enter ~/src/example --json
+    ./scripts/orbit map ~/src --json
 
 JSON reports use schema version 1 and contain a status, rows, a next action,
 and an exit code matching the command result. The core uses only the Python
@@ -82,6 +83,7 @@ installer and initial provisioning remain Bash so they can bootstrap Python.
 | ./scripts/doctor | Read-only readiness report |
 | ./scripts/plan | Read-only preview of profile selection and managed file changes |
 | ./scripts/enter [path] | Read-only project tool readiness view |
+| ./scripts/orbit map [source-directory] | Read-only readiness map of immediate child projects |
 | ./scripts/check | Repository and language-template validation |
 | ./scripts/profiles --list | Show optional profiles |
 | ./scripts/services status | Inspect container service state |
@@ -131,6 +133,17 @@ accepted. This file declares requirements; it cannot run hooks or commands.
 Enter exits 0 for tooling ready, 1 for action or review, and 2 for invalid
 input. It reads bounded manifest files to extract version declarations and the
 optional requirements file; it never prints their contents.
+
+To see your source workspace at a glance, run `./scripts/orbit map`. It uses
+`~/src` by default, or `DEV_MACHINE_SRC_ROOT` / `ORBIT_SRC_ROOT` when set. The
+map checks immediate child directories with a Git checkout or recognized
+manifest, reuses `enter`'s bounded checks, and shows `READY`, `ACTION`, or
+`REVIEW` for each project. An empty Git checkout is shown as `REVIEW`. The first
+project needing attention becomes the next `orbit enter` command. The map
+skips symbolic links, scans at most 128 child directories, reports any omitted
+directories, and does not run project code or change a checkout. Its result is
+tool readiness, not a project build or dependency check. `orbit projects`
+remains a fast manifest-filename inventory.
 
 ## Profiles
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from . import ORBIT_ROOT, doctor, enter, plan
+from . import ORBIT_ROOT, doctor, enter, plan, workspace
 from .report import Report, render
 from .state import ProfileError
 
@@ -13,6 +13,7 @@ HELP = {
     "status": "Usage: orbit status [--docker] [--json]\nInspect machine readiness without changing it.",
     "plan": "Usage: orbit plan [--profile NAME|all]... [--json]\nPreview profile and managed file changes.",
     "enter": "Usage: orbit enter [PROJECT_DIRECTORY] [--json]\nInspect local project tooling without running project code.",
+    "map": "Usage: orbit map [SOURCE_DIRECTORY] [--json]\nMap local tool readiness across immediate child projects.",
 }
 
 
@@ -27,7 +28,7 @@ def _error(command: str, message: str, json_output: bool, code: int = 2) -> int:
 
 def main(arguments: list[str]) -> int:
     if not arguments or arguments[0] not in HELP:
-        print("Usage: orbit {status|plan|enter} [options]", file=sys.stderr)
+        print("Usage: orbit {status|plan|enter|map} [options]", file=sys.stderr)
         return 2
     command = arguments[0]
     options = arguments[1:]
@@ -49,6 +50,13 @@ def main(arguments: list[str]) -> int:
             if len(options) % 2 != 0 or any(options[index] != "--profile" for index in range(0, len(options), 2)):
                 return _error(command, HELP[command], json_output)
             result = plan.build_report(ORBIT_ROOT, options)
+        elif command == "map":
+            if len(options) > 1 or (options and options[0].startswith("-")):
+                return _error(command, HELP[command], json_output)
+            source = Path(options[0]).expanduser().resolve() if options else workspace.default_source_root()
+            if not source.is_dir():
+                return _error(command, f"no source directory at {source}", json_output)
+            result = workspace.build_report(source)
         else:
             if len(options) > 1 or (options and options[0].startswith("-")):
                 return _error(command, HELP[command], json_output)
@@ -60,7 +68,7 @@ def main(arguments: list[str]) -> int:
         return _error(command, str(error), json_output)
     except plan.PlanError as error:
         return _error(command, str(error), json_output, code=1)
-    except (enter.InputError, OSError, UnicodeError) as error:
+    except (enter.InputError, OSError, UnicodeError, RuntimeError) as error:
         return _error(command, str(error), json_output)
     render(result, json_output=json_output)
     return result.exit_code
