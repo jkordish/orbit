@@ -46,6 +46,7 @@ Examples
   orbit status --json
   orbit repo ~/src/my-project
   orbit enter ~/src/my-project
+  orbit projects --json
   orbit map ~/src
   orbit map ~/src --git
   orbit plan --profile all
@@ -54,7 +55,7 @@ Examples
   orbit services status
   orbit services sleep
 
-Read-only status, enter, map, and plan also support --json. Actions are never
+Read-only status, projects, enter, map, and plan also support --json. Actions are never
 inferred from a view; use the explicit subcommand when you want one.
 EOF
 }
@@ -149,14 +150,9 @@ usage_tty() {
     printf '    %sorbit provision --profile all%s\n' "$color_amber" "$color_reset"
     printf '    %sorbit new python my-app ~/src%s\n' "$color_amber" "$color_reset"
   fi
-  if [ "$width" -lt 38 ]; then
-    printf '\n  %sJSON: status, map%s\n' "$color_muted" "$color_reset"
-    printf '  %senter, plan%s\n\n' "$color_muted" "$color_reset"
-  elif [ "$width" -lt 50 ]; then
-    printf '\n  %s--json: status, enter, map, plan%s\n\n' "$color_muted" "$color_reset"
-  else
-    printf '\n  %sstatus, enter, map, and plan support --json.%s\n\n' "$color_muted" "$color_reset"
-  fi
+  printf '\n  %sJSON OUTPUT%s\n' "$color_indigo" "$color_reset"
+  usage_description 'status, projects, enter, map, plan' "$((width - 6))"
+  printf '\n'
 }
 
 usage() {

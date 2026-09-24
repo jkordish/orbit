@@ -61,9 +61,9 @@ the view offers a read-only Git status command for manual inspection.
 `install.sh`, `bootstrap.command`, `setup`, and package actions remain Bash
 entrypoints. They can run before Orbit's managed Python is installed and retain
 their serialized, backup-aware setup behavior. `scripts/orbit` remains the
-single command front door. Its read-only `status`, `plan`, `enter`, and `map` commands
-use `scripts/orbit_core/`, a Python standard-library package compatible with
-the Command Line Tools Python. The Bash wrappers select that interpreter and
+single command front door. Its read-only `status`, `plan`, `projects`, `enter`,
+and `map` commands use `scripts/orbit_core/`, a Python standard-library package
+compatible with the Command Line Tools Python. The Bash wrappers select that interpreter and
 disable bytecode writes. Recovery inventory and Git synchronization remain
 separate Bash commands with their established safety contracts.
 

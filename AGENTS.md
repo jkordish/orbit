@@ -41,7 +41,8 @@ scope.
 - scripts/check validates shell, configuration, Python, TypeScript, Go, and
   Rust without applying workstation Brewfiles or starting services.
 - scripts/projects only inventories project manifest filenames under the
-  selected source directory; it does not execute project code.
+  selected source directory; it does not open manifests or execute project code.
+  Symbolic-link child directories are skipped and disclosed.
 - scripts/orbit map reuses bounded project entry checks for immediate children
   of one source directory. It skips symbolic links, reports incomplete scan
   coverage, and does not run project code or change project files.
@@ -53,7 +54,7 @@ scope.
   checkout; other repositories must use their own Git workflow.
 - scripts/enter reads bounded project declarations and probes local tools;
   it never executes project code or changes project or machine state.
-- scripts/orbit_core owns read-only status, plan, enter, and map report building.
+- scripts/orbit_core owns read-only status, plan, projects, enter, and map report building.
   Keep its text and JSON results aligned, avoid project code execution, and
   preserve exit codes. The Bash installer/setup and recovery paths must work
   before Orbit's managed Python exists.

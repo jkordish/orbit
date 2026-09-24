@@ -93,12 +93,13 @@ The `./scripts/orbit` command groups the day-to-day views and explicit actions.
 Run it without arguments for an interactive command board that adapts to narrow
 terminals and points to the first useful commands. Piped help and `TERM=dumb`
 keep the plain text layout; `NO_COLOR` removes terminal color.
-Its read-only `status`, `plan`, `enter`, and `map` views share a Python core and support
-`--json` for scripts and integrations:
+Its read-only `status`, `plan`, `projects`, `enter`, and `map` views share a
+Python core and support `--json` for scripts and integrations:
 
     ./scripts/orbit status --json
     ./scripts/orbit plan --profile wasm --json
     ./scripts/orbit enter ~/src/example --json
+    ./scripts/orbit projects --json
     ./scripts/orbit map ~/src --json
     ./scripts/orbit map ~/src --git --json
 
@@ -129,7 +130,7 @@ regardless of terminal settings.
 | ./scripts/services | Start Apple's container service |
 | ./scripts/container-check | Run the pinned container smoke check |
 | ./scripts/docker-start | Start the optional Colima Docker-compatible VM |
-| ./scripts/projects | Inventory language manifests under ~/src without running project code |
+| ./scripts/orbit projects [--json] | Inventory language manifest filenames under ~/src without running project code |
 | ./scripts/recovery | Inspect preserved setup backups without reading their contents |
 | ./scripts/sync | Safely fast-forward a clean checkout to main |
 | ./scripts/new-project | Create a starter project from a language template |
@@ -182,7 +183,9 @@ project needing attention becomes the next `orbit enter` command. The map
 skips symbolic links, scans at most 128 child directories, reports any omitted
 directories, and does not run project code or change a checkout. Its result is
 tool readiness, not a project build or dependency check. `orbit projects`
-remains a fast manifest-filename inventory.
+remains a fast manifest-filename inventory. It counts detected language families
+without opening manifests and supports the same interactive, plain, and JSON
+report views as the readiness commands.
 
 Add `--git` to the map for a local Git safety view across those projects:
 

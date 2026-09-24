@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from . import ORBIT_ROOT, doctor, enter, plan, workspace
+from . import ORBIT_ROOT, doctor, enter, inventory, plan, workspace
 from .report import Report, render
 from .state import ProfileError
 
@@ -14,6 +14,7 @@ HELP = {
     "plan": "Usage: orbit plan [--profile NAME|all]... [--json]\nPreview profile and managed file changes.",
     "enter": "Usage: orbit enter [PROJECT_DIRECTORY] [--json]\nInspect local project tooling without running project code.",
     "map": "Usage: orbit map [SOURCE_DIRECTORY] [--git] [--json]\nMap project tooling and optional cached Git state.",
+    "projects": "Usage: orbit projects [--json]\nInventory project manifest filenames without opening their contents.",
 }
 
 
@@ -28,7 +29,7 @@ def _error(command: str, message: str, json_output: bool, code: int = 2) -> int:
 
 def main(arguments: list[str]) -> int:
     if not arguments or arguments[0] not in HELP:
-        print("Usage: orbit {status|plan|enter|map} [options]", file=sys.stderr)
+        print("Usage: orbit {status|plan|enter|map|projects} [options]", file=sys.stderr)
         return 2
     command = arguments[0]
     options = arguments[1:]
@@ -46,6 +47,10 @@ def main(arguments: list[str]) -> int:
             if options not in ([], ["--docker"]):
                 return _error(command, HELP[command], json_output)
             result = doctor.build_report(ORBIT_ROOT, docker=bool(options))
+        elif command == "projects":
+            if options:
+                return _error(command, HELP[command], json_output)
+            result = inventory.build_report(workspace.default_source_root())
         elif command == "plan":
             if len(options) % 2 != 0 or any(options[index] != "--profile" for index in range(0, len(options), 2)):
                 return _error(command, HELP[command], json_output)
