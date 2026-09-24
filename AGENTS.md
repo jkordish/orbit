@@ -48,6 +48,11 @@ scope.
   installing packages or changing selection. Piped scripts/profiles --list
   output keeps its existing format. Keep profile descriptions aligned with
   their Brewfiles.
+- orbit plan inventories simple base and selected profile Brewfile declarations
+  without evaluating Ruby or probing Homebrew. Reads are bounded to 128 KiB
+  per manifest. Counts are declarations, not missing packages. Unrecognized or
+  conditional rules must stay visible for review rather than being presented
+  as resolved installs.
 - scripts/orbit map reuses bounded project entry checks for immediate children
   of one source directory. It skips symbolic links, reports incomplete scan
   coverage, and does not run project code or change project files.

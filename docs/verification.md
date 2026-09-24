@@ -12,9 +12,11 @@ accepts system-wide terms.
 
 Run scripts/plan with optional `--profile` choices for a read-only preview of
 profile selection and managed user file changes. It reports paths and backup
-intent without displaying file contents or creating state. Package resolution,
-runtime installation, macOS defaults, and service effects are outside this
-first preview scope.
+intent without displaying file contents or creating state. Its static Brewfile
+inventory counts declared formulae, casks, and taps for the base and selected
+profiles and flags conditional or unparsed lines. It does not run Brewfile
+Ruby, ask Homebrew what is installed, or resolve package actions. Runtime
+installation, macOS defaults, and service effects remain outside this scope.
 
 Run `scripts/enter [project directory]` for a bounded, read-only project
 tooling check. It scans standard manifest names, reads only small version
@@ -25,12 +27,13 @@ Selected profiles are checked by name; their packages are not verified here.
 
 The read-only `status`, `plan`, `projects`, `enter`, and `map` views use the
 standard-library Python core. `--json` returns the same report as text with
-`schema_version: 1`, including exit code and next action. The wrappers disable Python bytecode
-writes. `scripts/check` exercises text/JSON rendering, interactive layout,
-narrow terminal wrapping, invalid arguments, profile previews in an isolated
-home, project entry, and doctor check results with local probes stubbed. The
-real doctor can still report missing installed tools after repository checks
-pass; no installer is run by those checks.
+`schema_version: 1`, including exit code and next action. The wrappers disable
+Python bytecode writes. `scripts/check` exercises text/JSON rendering,
+interactive layout, narrow terminal wrapping, invalid arguments, profile
+previews in an isolated home, project entry, and doctor check results with
+local probes stubbed. Package names and paths wrap at separators when possible.
+The real doctor can still report missing installed tools after repository
+checks pass; no installer is run by those checks.
 `orbit projects` checks immediate child manifest filenames only. It skips
 symbolic-link child directories, reports their count, and never reads project
 declarations. Its JSON output is an inventory, not a tooling verdict.

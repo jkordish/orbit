@@ -34,10 +34,14 @@ so the catalog remains available before Orbit installs managed Python.
 `orbit plan` is a read-only first step toward an inspectable setup. It resolves
 the same profile names as apply and uses the configurator's file comparison
 logic to preview creates and changes. It displays destinations and backup
-intent, never file contents. The current plan does not cover package resolution,
-runtime installation, macOS defaults, or services, so setup remains the owner
-of those effects. Future receipts and restoration should reuse this change
-model and refuse to overwrite a destination that changed after Orbit applied it.
+intent, never file contents. A static Brewfile inventory summarizes base and
+selected profile formula, cask, and tap declarations. It highlights conditional
+and unparsed lines for source review without evaluating Ruby. These counts do
+not establish installed state or Homebrew's resolved action set. Runtime
+installation, macOS defaults, and services remain outside the preview, so
+setup remains the owner of those effects. Future receipts and restoration
+should reuse this change model and refuse to overwrite a destination that
+changed after Orbit applied it.
 
 ## Project entry
 

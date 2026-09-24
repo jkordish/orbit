@@ -32,7 +32,7 @@ Read-only views
   ${color_mint}projects${color_reset}     Inventory project language manifests
   ${color_mint}map${color_reset}          Map project tools; add --git for local Git state
   ${color_mint}enter${color_reset}        Inspect a project's local tool readiness
-  ${color_mint}plan${color_reset}         Preview profile and managed file changes
+  ${color_mint}plan${color_reset}         Preview profiles, packages, and managed files
 
 Explicit actions
   ${color_amber}provision${color_reset}   Run the complete one-step workstation setup (alias: setup)
@@ -119,7 +119,7 @@ usage_tty() {
   printf '\n  %sSTART HERE%s\n' "$color_indigo" "$color_reset"
   usage_item 'orbit status' 'See what needs attention' "$color_mint" "$width"
   usage_item 'orbit map --git' 'Survey project tools and Git' "$color_mint" "$width"
-  usage_item 'orbit plan' 'Preview managed changes' "$color_mint" "$width"
+  usage_item 'orbit plan' 'Preview setup scope' "$color_mint" "$width"
 
   printf '\n  %sEXPLORE%s  %sread-only%s\n' "$color_indigo" "$color_reset" "$color_muted" "$color_reset"
   usage_item 'status' 'Machine readiness (doctor)' "$color_mint" "$width"
@@ -129,7 +129,7 @@ usage_tty() {
   usage_item 'projects' 'Find project manifests' "$color_mint" "$width"
   usage_item 'map' 'Survey local projects; --git adds Git' "$color_mint" "$width"
   usage_item 'enter' 'Check a project toolchain' "$color_mint" "$width"
-  usage_item 'plan' 'Preview profiles and files' "$color_mint" "$width"
+  usage_item 'plan' 'Preview profiles, packages, and files' "$color_mint" "$width"
 
   if [ "$width" -lt 32 ]; then
     printf '\n  %sMAKE CHANGES%s\n' "$color_indigo" "$color_reset"

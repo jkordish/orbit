@@ -123,7 +123,7 @@ regardless of terminal settings.
 | ./setup | Full repeatable workstation provisioning |
 | ./scripts/apply | Install packages, runtimes, profiles, and managed configuration |
 | ./scripts/doctor | Read-only readiness report |
-| ./scripts/plan | Read-only preview of profile selection and managed file changes |
+| ./scripts/plan | Read-only preview of profiles, Brewfile declarations, and managed file changes |
 | ./scripts/enter [path] | Read-only project tool readiness view |
 | ./scripts/orbit map [source-directory] | Read-only readiness map of immediate child projects |
 | ./scripts/orbit repo [path] | Read-only main/origin/main state for one checkout |
@@ -152,9 +152,12 @@ before applying:
     ./setup --profile all
 
 The preview lists target paths and whether an existing file would be backed up;
-it never prints file contents. Its current scope is profile choices and managed
-user files. Full setup also installs packages and runtimes, applies macOS
-preferences, starts services, and runs checks.
+it never prints file contents. It also inventories the base and selected
+profile Brewfiles by formula, cask, and tap, and points out conditional or
+unrecognized declarations for review. These are source declarations, not a
+check of which packages are missing or what Homebrew will resolve. Full setup
+also installs packages and runtimes, applies macOS preferences, starts
+services, and runs checks.
 
 To check a project before opening it, run `./scripts/orbit enter ~/src/example`
 or `./scripts/enter` from inside that project. Enter inspects standard manifest

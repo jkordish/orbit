@@ -122,8 +122,15 @@ def _wrap(value: str, width: int) -> list[str]:
             lines.append(prefix[:cut].rstrip())
             remaining = remaining[cut + 1:].lstrip()
         else:
-            lines.append(prefix)
-            remaining = rest.lstrip()
+            # Long paths and package names read better when separators stay
+            # with the preceding segment instead of breaking mid-word.
+            separator = max(prefix.rfind(character) for character in "/-._")
+            if separator >= max(2, width // 3):
+                lines.append(prefix[:separator + 1])
+                remaining = remaining[separator + 1:].lstrip()
+            else:
+                lines.append(prefix)
+                remaining = rest.lstrip()
     return lines
 
 
