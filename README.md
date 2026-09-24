@@ -39,7 +39,10 @@ The installer checks for Apple Silicon macOS and Command Line Tools, clones
 Orbit into `~/.config/orbit`, and runs the complete setup. It reuses and safely
 syncs an existing Orbit checkout; it refuses to replace a different directory,
 repository, or symbolic link. Review [install.sh](install.sh) first if you want
-to inspect the bootstrap code. Optional profiles can be selected in the same
+to inspect the bootstrap code. Its two step display shows checkout and setup
+handoff; `./install.sh --preview-ui` renders sample installer states without
+cloning, syncing, or provisioning. A session without a usable terminal stops
+before changing the checkout. Optional profiles can be selected in the same
 command. Use `all` to include every optional profile currently defined in
 `profiles/`:
 

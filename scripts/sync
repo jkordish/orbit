@@ -33,7 +33,9 @@ if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
   color_rose=$'\033[38;2;243;139;168m'
 fi
 
-printf '%sORBIT%s / REPOSITORY SYNC\n' "$color_indigo" "$color_reset"
+if [ "${ORBIT_INSTALL_CONTEXT:-}" != installer ]; then
+  printf '%sORBIT%s / REPOSITORY SYNC\n' "$color_indigo" "$color_reset"
+fi
 
 git_run() {
   git -C "$ORBIT_ROOT" "$@"
@@ -165,9 +167,13 @@ if [ "$final_branch" != main ] || [ "$final_head" != "$final_remote" ] || [ -n "
 fi
 
 if [ -n "$merge_output" ]; then printf '%s\n' "$merge_output"; fi
-printf '  %sREADY%s · main @ %s\n' "$color_mint" "$color_reset" "${final_head:0:12}"
+if [ "${ORBIT_INSTALL_CONTEXT:-}" != installer ]; then
+  printf '  %sREADY%s · main @ %s\n' "$color_mint" "$color_reset" "${final_head:0:12}"
+fi
 if [ -n "$preserved_ref" ]; then
   printf '  %sPRESERVED%s · %s @ %s\n' \
     "$color_amber" "$color_reset" "$preserved_ref" "${current_head:0:12}"
 fi
-printf '  NEXT · push reviewed commits separately; this command never publishes.\n'
+if [ "${ORBIT_INSTALL_CONTEXT:-}" != installer ]; then
+  printf '  NEXT · push reviewed commits separately; this command never publishes.\n'
+fi

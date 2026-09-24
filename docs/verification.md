@@ -96,6 +96,13 @@ apply because their requested profiles cannot be recovered reliably.
 Setup refuses symbolic links for its state directory, lock, and phase record
 before writing.
 
+The curl installer can be reviewed with `./install.sh --preview-ui` at wide and
+narrow widths, with `NO_COLOR` and plain output. Its preview skips platform
+checks, network access, checkout synchronization, and setup. The real installer
+checks for a usable terminal before cloning or syncing. In installer context,
+sync still surfaces Git diagnostics and preservation details while leaving the
+standalone sync next step to standalone use.
+
 CI runs repository checks on Linux, where macOS-only setup and service commands
 are not invoked. A passing CI run verifies only the workflow steps and commit
 under test; it does not verify installed tools, account state, model

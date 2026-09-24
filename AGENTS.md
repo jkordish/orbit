@@ -92,6 +92,9 @@ scope.
 - Review setup and its child scripts as one story: the opening must show the
   effective profile scope, and recovery guidance must match the entrypoint
   the person is running.
+- Review curl bootstrap with `./install.sh --preview-ui` for fresh and existing
+  checkouts and a pause state. Keep it self-contained before clone; preserve
+  Git diagnostics and one clear handoff to setup.
 
 ## Shared AI guidance
 
