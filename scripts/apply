@@ -29,7 +29,7 @@ release_lock() {
     rmdir "$lock_root" 2>/dev/null || true
   fi
 }
-if [ "${DEV_MACHINE_SETUP_CONTEXT:-}" = full ]; then
+if [ "${ORBIT_SETUP_CONTEXT:-}" = full ]; then
   lock_pid=''
   if [ -r "$lock_root/pid" ]; then lock_pid=$(cat "$lock_root/pid"); fi
   if [ -z "$lock_pid" ] || ! kill -0 "$lock_pid" 2>/dev/null; then
@@ -86,26 +86,21 @@ while IFS= read -r extension; do
     "$code" --install-extension "$extension"
   fi
 done < "$ORBIT_ROOT/config/extensions.txt"
-color_reset=''
-color_indigo=''
-color_mint=''
-color_amber=''
-if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
-  color_reset=$'\033[0m'
-  color_indigo=$'\033[38;2;180;190;254m'
-  color_mint=$'\033[38;2;148;226;213m'
-  color_amber=$'\033[38;2;249;226;175m'
-fi
+if [ "${ORBIT_SETUP_CONTEXT:-}" != full ]; then
+  color_reset=''
+  color_indigo=''
+  color_mint=''
+  color_amber=''
+  if [ -t 1 ] && [ -z "${NO_COLOR+x}" ] && [ "${TERM:-}" != dumb ]; then
+    color_reset=$'\033[0m'
+    color_indigo=$'\033[38;2;180;190;254m'
+    color_mint=$'\033[38;2;148;226;213m'
+    color_amber=$'\033[38;2;249;226;175m'
+  fi
 
-printf '\n%sORBIT%s / BASE SETUP\n' "$color_indigo" "$color_reset"
-printf '  %sAPPLIED%s · Base tools, runtimes, and locked environments are in place.\n' \
-  "$color_mint" "$color_reset"
-if [ "${DEV_MACHINE_SETUP_CONTEXT:-}" = full ]; then
-  printf '  %sCONTINUE%s · Full setup will start container services and run repository checks.\n' \
-    "$color_amber" "$color_reset"
-else
+  printf '\n%sORBIT%s / BASE SETUP\n' "$color_indigo" "$color_reset"
+  printf '  %sAPPLIED%s · Base tools, runtimes, and locked environments are in place.\n' \
+    "$color_mint" "$color_reset"
   printf '  %sNEXT%s · ./scripts/services\n' "$color_amber" "$color_reset"
   printf '  %sTHEN%s · ./scripts/doctor\n' "$color_amber" "$color_reset"
-
-
 fi

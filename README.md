@@ -47,12 +47,14 @@ command. Use `all` to include every optional profile currently defined in
       https://raw.githubusercontent.com/jkordish/orbit/main/install.sh | /bin/bash -s -- --profile all
 
 To inspect a checkout before changing the machine, clone Orbit and preview the
-selected profiles, managed-file changes, and macOS preference values:
+selected profiles, managed-file changes, and macOS preference differences:
 
     git clone https://github.com/jkordish/orbit.git ~/.config/orbit
     cd ~/.config/orbit
     ./scripts/orbit plan
     ./scripts/orbit status
+
+Add `--details` to the plan to inspect every declared macOS preference value.
 
 When ready, run setup from that checkout. Add `--profile all` to both `plan`
 and `setup` if you want every optional profile:
@@ -65,8 +67,9 @@ manifests, configures managed shell/editor preferences, starts Apple's
 container service, runs a digest-pinned container smoke check, and reports
 readiness. It needs network access and several GB of free space. Homebrew's
 initial installation may ask for your administrator password; run the rest as
-your normal user. Do not run setup with sudo. Interactive setup shows all seven
-phases and the current step; piped logs keep plain phase labels.
+your normal user. Do not run setup with sudo. Interactive setup shows a compact
+seven-step progress line, elapsed time for each phase, and a clear recovery or
+completion action. Piped logs keep plain phase labels and statuses.
 
 ## Safety and recovery
 
@@ -152,11 +155,12 @@ before applying:
     ./setup --profile all
 
 The preview lists target paths and whether an existing file would be backed up;
-it never prints file contents. It also shows every macOS preference value that
-setup will write. These values come from the same declaration used by the
-preferences action. On macOS, it compares current values and types in memory
-and labels keys that differ; it never prints existing values. Setup backs up
-the affected domains and writes every declared key, including matching ones.
+it never prints file contents. It shows macOS preference keys that differ or
+cannot be checked, and summarizes keys that already match. `--details` expands
+the matching keys to show every declared value. These values come from the same
+declaration used by the preferences action. On macOS, Orbit compares current
+values and types in memory; it never prints existing values. Setup backs up the
+affected domains and writes every declared key, including matching ones.
 It inventories the base and selected profile Brewfiles by formula, cask, and
 tap, and points out conditional or unrecognized declarations for review. These
 are source declarations, not a check of which packages are missing or what

@@ -52,7 +52,9 @@ scope.
   without evaluating Ruby or probing Homebrew. Reads are bounded to 128 KiB
   per manifest. Counts are declarations, not missing packages. Unrecognized or
   conditional rules must stay visible for review rather than being presented
-  as resolved installs.
+  as resolved installs. macOS preferences that differ or cannot be read stay
+  visible; matching values may be summarized by default and expanded with
+  `--details` in both text and JSON.
 - scripts/orbit map reuses bounded project entry checks for immediate children
   of one source directory. It skips symbolic links, reports incomplete scan
   coverage, and does not run project code or change project files.
@@ -76,6 +78,17 @@ scope.
   Keep its text and JSON results aligned, avoid project code execution, and
   preserve exit codes. The Bash installer/setup and recovery paths must work
   before Orbit's managed Python exists.
+
+## Presentation review
+
+- Review every user-facing terminal change at wide and narrow widths, with
+  `NO_COLOR`, and with piped or `TERM=dumb` output. Inspect success, failure,
+  and empty or skipped states where they exist.
+- Keep the current state and one useful next action easy to find. Color is
+  supplemental; words and symbols must still carry meaning without it.
+- Avoid repeated banners in the full setup flow. Preserve underlying command
+  output so a failed phase remains diagnosable. Render sample phases for visual
+  review; do not reprovision a workstation just to inspect presentation.
 
 ## Shared AI guidance
 

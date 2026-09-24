@@ -14,11 +14,12 @@ Run scripts/plan with optional `--profile` choices for a read-only preview of
 profile selection, managed user file changes, and macOS preferences. It reports
 paths and backup intent without displaying file contents or creating state.
 On macOS it compares the declared preference types and values with in-memory
-domain exports, showing differing keys without printing existing
-values. An unreadable domain is marked for review. Its static Brewfile
-inventory counts declared formulae, casks, and taps for the base and selected
-profiles and flags conditional or unparsed lines. It does not run Brewfile
-Ruby, ask Homebrew what is installed, or resolve package actions. Runtime
+domain exports, showing differing keys without printing existing values.
+Matching keys are summarized unless `--details` is supplied; text and JSON
+retain the same rows. An unreadable domain is marked for review. Its static
+Brewfile inventory counts declared formulae, casks, and taps for the base and
+selected profiles and flags conditional or unparsed lines. It does not run
+Brewfile Ruby, ask Homebrew what is installed, or resolve package actions. Runtime
 installation and service effects remain outside this scope.
 
 Run `scripts/enter [project directory]` for a bounded, read-only project
@@ -82,7 +83,10 @@ installs selected packages and runtimes, configures managed user settings,
 applies backed-up macOS defaults, starts Apple's container service, runs a
 digest-pinned container smoke check, then runs repository checks and doctor.
 Review README.md and the scripts before using it on a machine. The interactive
-setup phase cards do not change phase state or resume ordering. Setup refuses
+setup progress display does not change phase state or resume ordering. Its
+failure state retains the failing exit code and points to `./setup --resume`.
+Review the display at 80 and 24 columns, with color, `NO_COLOR`, and plain
+piped output; the underlying phase output must remain visible. Setup refuses
 symbolic links for its state directory, lock, and phase record before writing.
 
 CI runs repository checks on Linux, where macOS-only setup and service commands

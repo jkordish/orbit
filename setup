@@ -107,11 +107,13 @@ phase='preflight'
 resuming=0
 phase_number=0
 phase_total=7
+setup_started=$SECONDS
 interactive=0
 color_reset=''
 color_indigo=''
 color_mint=''
 color_amber=''
+color_rose=''
 color_muted=''
 if [ -t 1 ] && [ "${TERM:-}" != dumb ]; then
   interactive=1
@@ -121,6 +123,7 @@ if [ "$interactive" -eq 1 ] && [ -z "${NO_COLOR+x}" ]; then
   color_indigo=$'\033[38;2;180;190;254m'
   color_mint=$'\033[38;2;148;226;213m'
   color_amber=$'\033[38;2;249;226;175m'
+  color_rose=$'\033[38;2;243;139;168m'
   color_muted=$'\033[38;2;166;173;200m'
 fi
 
@@ -142,35 +145,118 @@ rule() {
   printf '%s' "${spaces// /─}"
 }
 
-phase_card() {
-  local number=$1 label=$2 width title marks='' index
+phase_title() {
+  case "$1" in
+    bootstrap) printf 'Bootstrap\n' ;;
+    apply) printf 'Tools & config\n' ;;
+    preferences) printf 'macOS settings\n' ;;
+    services) printf 'Container service\n' ;;
+    container-smoke) printf 'Container check\n' ;;
+    repository-check) printf 'Repository checks\n' ;;
+    readiness) printf 'Readiness\n' ;;
+  esac
+}
+
+duration() {
+  local elapsed=$1
+  if [ "$elapsed" -ge 3600 ]; then
+    printf '%sh %sm\n' "$((elapsed / 3600))" "$(((elapsed % 3600) / 60))"
+  elif [ "$elapsed" -ge 60 ]; then
+    printf '%sm %ss\n' "$((elapsed / 60))" "$((elapsed % 60))"
+  else
+    printf '%ss\n' "$elapsed"
+  fi
+}
+
+setup_heading() {
+  local width
+  if [ "$interactive" -eq 0 ]; then
+    printf 'ORBIT / SETUP\n  %s phases · repeat-safe\n' "$phase_total"
+    if [ "$resume_requested" -eq 1 ]; then
+      printf '  RESUME · from %s\n' "$(phase_title "$resume_phase")"
+    fi
+    return
+  fi
+  width=$(terminal_columns)
+  case "$width" in
+    ''|*[!0-9]*) width=80 ;;
+  esac
+  printf '\n  %s◉ ORBIT / SETUP%s\n' "$color_indigo" "$color_reset"
+  if [ "$width" -ge 50 ]; then
+    printf '  %sA calm, repeatable workstation · %s phases%s\n' \
+      "$color_muted" "$phase_total" "$color_reset"
+  elif [ "$width" -lt 24 ]; then
+    printf '  %s%s phases%s\n' "$color_muted" "$phase_total" "$color_reset"
+  else
+    printf '  %s%s phases · repeat-safe%s\n' "$color_muted" "$phase_total" "$color_reset"
+  fi
+  if [ "$resume_requested" -eq 1 ]; then
+    if [ "$width" -lt 42 ]; then
+      printf '  %sRESUME%s\n' "$color_amber" "$color_reset"
+    else
+      printf '  %sRESUME%s  from %s\n' "$color_amber" "$color_reset" \
+        "$(phase_title "$resume_phase")"
+    fi
+  fi
+}
+
+phase_heading() {
+  local number=$1 label=$2 width marks='' index marks_visible
   width=$(terminal_columns)
   case "$width" in
     ''|*[!0-9]*) width=80 ;;
   esac
   if [ "$width" -lt 20 ]; then width=20; fi
   if [ "$width" -gt 80 ]; then width=80; fi
-  title=' ◉ ORBIT / SETUP '
-  if [ "$width" -lt 30 ]; then title=' ◉ ORBIT '; fi
   for ((index = 1; index <= phase_total; index++)); do
     if [ "$index" -lt "$number" ]; then
-      marks+='● '
+      marks+="${color_mint}●${color_reset} "
     elif [ "$index" -eq "$number" ]; then
-      marks+='◉ '
+      marks+="${color_indigo}◉${color_reset} "
     else
-      marks+='○ '
+      marks+="${color_muted}○${color_reset} "
     fi
   done
-  printf '\n%s╭─%s%s╮%s\n' "$color_indigo" "$title" \
-    "$(rule "$((width - 3 - ${#title}))")" "$color_reset"
-  if [ "$width" -lt 30 ]; then
-    printf '│  %s%-*s%s│\n' "$color_indigo" "$((width - 4))" "$number / $phase_total" "$color_reset"
-    printf '│  %s%-*s%s│\n' "$color_indigo" "$((width - 4))" "$label" "$color_reset"
+  marks=${marks% }
+  marks_visible=$((phase_total * 2 - 1))
+  if [ "$width" -lt 42 ]; then
+    printf '\n  %s%02d/%02d%s\n' "$color_indigo" "$number" "$phase_total" "$color_reset"
+    printf '  %s%s%s\n' "$color_indigo" "$label" "$color_reset"
   else
-    printf '│  %s%-*s%s│\n' "$color_indigo" "$((width - 4))" "$number / $phase_total  $label" "$color_reset"
+    printf '\n  %s%02d/%02d%s  %s\n' "$color_indigo" "$number" "$phase_total" "$color_reset" "$label"
   fi
-  printf '│  %s%-*s%s│\n' "$color_mint" "$((width - 4))" "$marks" "$color_reset"
-  printf '%s╰%s╯%s\n' "$color_indigo" "$(rule "$((width - 2))")" "$color_reset"
+  printf '  %s  %s%s%s\n' "$marks" "$color_muted" \
+    "$(rule "$((width - 4 - marks_visible))")" "$color_reset"
+}
+
+setup_outcome() {
+  local state=$1 detail=$2 hint=$3 action=$4 tone=$5
+  local short_detail=$6 short_hint=$7 width line
+  if [ "$interactive" -eq 1 ]; then
+    width=$(terminal_columns)
+    case "$width" in
+      ''|*[!0-9]*) width=80 ;;
+    esac
+    printf '\n  %s◉ ORBIT / %s%s\n' "$tone" "$state" "$color_reset"
+    if [ "$width" -lt 42 ]; then
+      while IFS= read -r line; do printf '  %s\n' "$line"; done <<< "$short_detail"
+      printf '  %sNEXT%s\n' "$color_amber" "$color_reset"
+      while IFS= read -r line; do printf '    %s\n' "$line"; done <<< "$short_hint"
+      if [ "$width" -lt 24 ]; then
+        printf '  %s%s%s\n' "$tone" "$action" "$color_reset"
+      else
+        printf '    %s↳ %s%s\n' "$tone" "$action" "$color_reset"
+      fi
+    else
+      printf '  %s\n' "$detail"
+      printf '  %sNEXT%s  %s\n' "$color_amber" "$color_reset" "$hint"
+      printf '    %s↳ %s%s\n' "$tone" "$action" "$color_reset"
+    fi
+  else
+    printf '\nORBIT / %s\n' "$state"
+    printf '  %s\n' "$detail"
+    printf '  NEXT · %s %s\n' "$hint" "$action"
+  fi
 }
 
 write_state() {
@@ -184,14 +270,26 @@ write_state() {
 }
 
 run_phase() {
+  local label started status elapsed width
   phase=$1
   shift
   phase_number=$((phase_number + 1))
+  label=$(phase_title "$phase")
   if [ "$resume_requested" -eq 1 ] && [ "$resuming" -eq 0 ]; then
     if [ "$phase" != "$resume_phase" ]; then
       if [ "$interactive" -eq 1 ]; then
-        printf '  %s↷ SKIP%s  %s/%s %s (resume starts at %s)\n' "$color_muted" "$color_reset" \
-          "$phase_number" "$phase_total" "$phase" "$resume_phase"
+        width=$(terminal_columns)
+        case "$width" in
+          ''|*[!0-9]*) width=80 ;;
+        esac
+        if [ "$width" -lt 42 ]; then
+          printf '  %s↷ %02d/%02d skipped%s\n' \
+            "$color_muted" "$phase_number" "$phase_total" "$color_reset"
+          printf '  %s%s%s\n' "$color_muted" "$label" "$color_reset"
+        else
+          printf '  %s↷ %02d/%02d  %s · already complete%s\n' \
+            "$color_muted" "$phase_number" "$phase_total" "$label" "$color_reset"
+        fi
       else
         printf '  SKIP · %s (resume starts at %s)\n' "$phase" "$resume_phase"
       fi
@@ -200,29 +298,40 @@ run_phase() {
     resuming=1
   fi
   write_state
-  phase_label=$(printf '%s' "$phase" | tr '[:lower:]' '[:upper:]')
   if [ "$interactive" -eq 1 ]; then
-    phase_card "$phase_number" "${phase_label//-/ }"
+    phase_heading "$phase_number" "$label"
   else
-    printf '\nORBIT / %s\n' "$phase_label"
+    printf '\nORBIT / %02d/%02d %s\n' "$phase_number" "$phase_total" "$label"
   fi
+  started=$SECONDS
   if "$@"; then
-    printf '  %sDONE%s · %s\n' "$color_mint" "$color_reset" "$phase"
+    elapsed=$(duration "$((SECONDS - started))")
+    if [ "$interactive" -eq 1 ]; then
+      printf '  %s✓%s  %s · %s\n' "$color_mint" "$color_reset" "$label" \
+        "$elapsed"
+    else
+      printf '  DONE · %s · %s\n' "$phase" "$elapsed"
+    fi
     return 0
+  else
+    status=$?
+    elapsed=$(duration "$((SECONDS - started))")
+    write_state
+    setup_outcome HOLD "$phase_number/$phase_total $label · exit $status · $elapsed" \
+      'Resolve the error above, then run from Orbit:' './setup --resume' "$color_rose" \
+      "$phase_number/$phase_total"$'\n'"$label"$'\n'"exit $status · $elapsed" \
+      $'Fix error above.\nIn Orbit folder:' >&2
+    exit "$status"
   fi
-  status=$?
-  write_state
-  printf '  HOLD · %s failed (exit %s). Rerun ./setup after resolving it; completed phases are safe to repeat.\n' \
-    "$phase" "$status" >&2
-  exit "$status"
 }
 
+setup_heading
 write_state
-run_phase bootstrap ./bootstrap.command
+run_phase bootstrap env ORBIT_SETUP_CONTEXT=full ./bootstrap.command
 if [ "${#setup_args[@]}" -gt 0 ]; then
-  run_phase apply env DEV_MACHINE_SETUP_CONTEXT=full ./scripts/apply "${setup_args[@]}"
+  run_phase apply env ORBIT_SETUP_CONTEXT=full ./scripts/apply "${setup_args[@]}"
 else
-  run_phase apply env DEV_MACHINE_SETUP_CONTEXT=full ./scripts/apply
+  run_phase apply env ORBIT_SETUP_CONTEXT=full ./scripts/apply
 fi
 run_phase preferences ./scripts/macos-defaults
 run_phase services ./scripts/services
@@ -232,11 +341,8 @@ run_phase readiness ./scripts/doctor
 
 phase='complete'
 write_state
-if [ "$interactive" -eq 1 ]; then
-  printf '\n  %s◉ ORBIT / COMPLETE%s\n' "$color_indigo" "$color_reset"
-  printf '  %s● READY%s · all %s setup phases completed.\n' "$color_mint" "$color_reset" "$phase_total"
-  printf '  %sNEXT%s · Open a new terminal, then run orbit status.\n' "$color_amber" "$color_reset"
-else
-  printf '\nORBIT / PROVISIONING COMPLETE\n'
-  printf '  READY · setup is repeat-safe; the last run completed every phase.\n'
-fi
+total_elapsed=$(duration "$((SECONDS - setup_started))")
+setup_outcome READY "$phase_total/$phase_total phases complete · $total_elapsed" \
+  'Open a new terminal, then run:' 'orbit status' "$color_mint" \
+  "$phase_total/$phase_total complete"$'\n'"$total_elapsed elapsed" \
+  'New terminal.'

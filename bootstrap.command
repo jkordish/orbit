@@ -20,4 +20,6 @@ if [ ! -x /opt/homebrew/bin/brew ]; then
   [ "$actual" = 12479a24be3f5307eecac7cde670fad7118640f031229e964f544b1367b52a41 ] || { echo 'Installer checksum mismatch' >&2; exit 1; }
   /bin/bash "$installer"
 fi
-echo 'Homebrew is ready. Run ./scripts/apply from this directory to apply the setup.'
+if [ "${ORBIT_SETUP_CONTEXT:-}" != full ]; then
+  echo 'Homebrew is ready. Run ./scripts/apply from this directory to apply the setup.'
+fi

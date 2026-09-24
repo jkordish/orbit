@@ -11,7 +11,7 @@ from .state import ProfileError
 
 HELP = {
     "status": "Usage: orbit status [--docker] [--json]\nInspect machine readiness without changing it.",
-    "plan": "Usage: orbit plan [--profile NAME|all]... [--json]\nPreview profiles, Brewfile declarations, managed files, and macOS preferences.",
+    "plan": "Usage: orbit plan [--profile NAME|all]... [--details] [--json]\nPreview setup; --details shows every macOS preference.",
     "enter": "Usage: orbit enter [PROJECT_DIRECTORY] [--json]\nInspect local project tooling without running project code.",
     "map": "Usage: orbit map [SOURCE_DIRECTORY] [--git] [--needs] [--json]\nMap project tooling, cached Git state, and detected stacks.",
     "projects": "Usage: orbit projects [--json]\nInventory project manifest filenames without opening their contents.",
@@ -52,9 +52,13 @@ def main(arguments: list[str]) -> int:
                 return _error(command, HELP[command], json_output)
             result = inventory.build_report(workspace.default_source_root())
         elif command == "plan":
+            details = "--details" in options
+            if options.count("--details") > 1:
+                return _error(command, "--details may be specified once", json_output)
+            options = [option for option in options if option != "--details"]
             if len(options) % 2 != 0 or any(options[index] != "--profile" for index in range(0, len(options), 2)):
                 return _error(command, HELP[command], json_output)
-            result = plan.build_report(ORBIT_ROOT, options)
+            result = plan.build_report(ORBIT_ROOT, options, details=details)
         elif command == "map":
             include_git = "--git" in options
             include_needs = "--needs" in options

@@ -125,7 +125,7 @@ def _current_preferences(domains: set[str]) -> dict[str, dict[str, object] | Non
     return observed
 
 
-def _macos_preferences(root: Path) -> tuple[list[Row], int]:
+def _macos_preferences(root: Path, *, details: bool) -> tuple[list[Row], int]:
     """Compare the action's scalar declarations with local macOS values where possible."""
     action = root / "scripts/macos-defaults"
     if action.is_symlink() or not action.is_file():
@@ -174,6 +174,7 @@ def _macos_preferences(root: Path) -> tuple[list[Row], int]:
                 rows.append(Row("macOS preferences", "REVIEW", domain,
                                 "Current values unavailable; showing declared values only"))
     missing = object()
+    matching = 0
     for domain, key, value_type, value, expected in declarations:
         content = current.get(domain)
         if content is None:
@@ -182,15 +183,21 @@ def _macos_preferences(root: Path) -> tuple[list[Row], int]:
             actual = content.get(key, missing)
             state = ("CREATE" if actual is missing else "MATCH"
                      if type(actual) is type(expected) and actual == expected else "CHANGE")
-        rows.append(Row("macOS preferences", state, key,
-                        f"{domain} · {value_type} {value}"))
+        if state == "MATCH" and not details:
+            matching += 1
+        else:
+            rows.append(Row("macOS preferences", state, key,
+                            f"{domain} · {value_type} {value}"))
+    if matching:
+        rows.append(Row("macOS preferences", "MATCH", f"{matching} matching values",
+                        "Add --details to inspect values"))
     if not rows:
         rows.append(Row("macOS preferences", "REVIEW", "Action",
                         "No preference declarations returned"))
     return rows, len(declarations)
 
 
-def build_report(root: Path, arguments: list[str]) -> Report:
+def build_report(root: Path, arguments: list[str], *, details: bool = False) -> Report:
     existing = resolve_profiles(root, [])
     desired = resolve_profiles(root, arguments)
     rows: list[Row] = []
@@ -202,7 +209,7 @@ def build_report(root: Path, arguments: list[str]) -> Report:
     package_rows, declarations = _package_scope(root, desired)
     rows.extend(package_rows)
     rows.extend(_managed_files(root))
-    preference_rows, preferences = _macos_preferences(root)
+    preference_rows, preferences = _macos_preferences(root, details=details)
     rows.extend(preference_rows)
     changes = sum(row.group == "Managed files" and row.state in {"CREATE", "CHANGE", "COPY"}
                   for row in rows)
@@ -223,10 +230,8 @@ def build_report(root: Path, arguments: list[str]) -> Report:
                  f"{_count(declarations, 'Homebrew declaration', 'Homebrew declarations')} · "
                  f"{preference_summary}"),
         next_action=action,
-        notes=["Homebrew inventory is static: no Ruby evaluation, installed-state check, or package resolution.",
-               "Managed file preview shows destinations and backup intent, never file or backup contents.",
-               "macOS preferences compare current values where readable; existing values stay private.",
-               "Setup backs up affected preference domains, then writes every declared key.",
-               "Setup also installs runtimes and starts services."],
+        notes=["Homebrew scope is static; installed packages and Ruby conditions are not resolved.",
+               "Existing file and macOS values stay private; setup backs up affected settings.",
+               "Runtime installs and services are outside this preview."],
         rows=rows,
     )
