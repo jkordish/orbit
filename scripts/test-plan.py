@@ -16,7 +16,10 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
     (root / "scripts").mkdir(parents=True)
     (root / "config").mkdir()
     (root / "profiles").mkdir()
-    for filename in ("env.sh", "profiles", "configure", "configure.py", "plan", "orbit-python", "orbit_cli.py"):
+    for filename in (
+        "env.sh", "profiles", "configure", "configure.py", "plan",
+        "orbit-python", "orbit_cli.py", "setup-ui.sh",
+    ):
         shutil.copy2(source / "scripts" / filename, root / "scripts" / filename)
     shutil.copytree(source / "scripts/orbit_core", root / "scripts/orbit_core", ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copy2(source / "setup", root / "setup")
