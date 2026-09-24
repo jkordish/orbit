@@ -36,3 +36,12 @@ intent, never file contents. The current plan does not cover package resolution,
 runtime installation, macOS defaults, or services, so setup remains the owner
 of those effects. Future receipts and restoration should reuse this change
 model and refuse to overwrite a destination that changed after Orbit applied it.
+
+## Project entry
+
+`orbit enter` is a read-only bridge between general workstation provisioning
+and a project's own setup. A bounded manifest scan identifies likely language
+toolchains. Small, explicit version declarations are compared with local tools;
+unparsed ranges remain review items. A root `.orbit.json` can request only
+known Orbit profiles and container services. Orbit never runs project hooks,
+installs project dependencies, or changes a project checkout during entry.

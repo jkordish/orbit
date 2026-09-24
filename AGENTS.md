@@ -42,6 +42,8 @@ scope.
   Rust without applying workstation Brewfiles or starting services.
 - scripts/projects only inventories project manifest filenames under the
   selected source directory; it does not execute project code.
+- scripts/enter reads bounded project declarations and probes local tools;
+  it never executes project code or changes project or machine state.
 
 ## Shared AI guidance
 

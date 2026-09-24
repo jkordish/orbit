@@ -16,6 +16,13 @@ intent without displaying file contents or creating state. Package resolution,
 runtime installation, macOS defaults, and service effects are outside this
 first preview scope.
 
+Run `scripts/enter [project directory]` for a bounded, read-only project
+tooling check. It scans standard manifest names, reads only small version
+declarations and an optional `.orbit.json`, then probes local tool commands and
+requested service status. It never executes project code or installs anything.
+The result does not establish dependency, build, test, or application health.
+Selected profiles are checked by name; their packages are not verified here.
+
 The full setup workflow has additional machine effects: it bootstraps Homebrew,
 installs selected packages and runtimes, configures managed user settings,
 applies backed-up macOS defaults, starts Apple's container service, runs a

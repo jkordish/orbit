@@ -67,6 +67,7 @@ without the full service and smoke-check phases, use ./scripts/apply.
 | ./scripts/apply | Install packages, runtimes, profiles, and managed configuration |
 | ./scripts/doctor | Read-only readiness report |
 | ./scripts/plan | Read-only preview of profile selection and managed file changes |
+| ./scripts/enter [path] | Read-only project tool readiness view |
 | ./scripts/check | Repository and language-template validation |
 | ./scripts/profiles --list | Show optional profiles |
 | ./scripts/services status | Inspect container service state |
@@ -95,6 +96,27 @@ The preview lists target paths and whether an existing file would be backed up;
 it never prints file contents. Its current scope is profile choices and managed
 user files. Full setup also installs packages and runtimes, applies macOS
 preferences, starts services, and runs checks.
+
+To check a project before opening it, run `./scripts/orbit enter ~/src/example`
+or `./scripts/enter` from inside that project. Enter inspects standard manifest
+filenames through two directory levels, compares declared versions with the
+active local toolchains where it can, and gives one next action. It does not
+run project scripts, install dependencies, start services, or write files. A
+tooling-ready result means only that checked tools and requested services are
+available and requested profiles are selected; project builds and dependencies
+still belong to that project. Unsupported version ranges and scan limits are
+reported for review instead of being marked ready.
+
+Projects may declare optional Orbit requirements in a small `.orbit.json` at
+their root:
+
+    {"version":1,"profiles":["wasm"],"services":["container"]}
+
+Only existing Orbit profiles and the `container` or `docker` services are
+accepted. This file declares requirements; it cannot run hooks or commands.
+Enter exits 0 for tooling ready, 1 for action or review, and 2 for invalid
+input. It reads bounded manifest files to extract version declarations and the
+optional requirements file; it never prints their contents.
 
 ## Profiles
 
