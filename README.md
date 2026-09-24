@@ -1,10 +1,31 @@
-# Orbit
+<p align="center">
+  <img src="assets/orbit-mark.svg" width="112" height="112" alt="Orbit mark: a mint satellite circling a central star">
+</p>
 
-A repeatable setup with preserved configuration backups for an Apple Silicon
-macOS development machine.
-It provides general tooling for Rust, TypeScript, Python, Go, containers,
-shell work, and editor workflows. It does not configure any application or
-project checkout.
+<h1 align="center">Orbit</h1>
+
+<p align="center"><strong>A calm, capable Mac in one repeatable setup.</strong><br>
+General development tooling for Apple Silicon macOS, with previews, preserved
+configuration backups, and clear next steps.</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#safety-and-recovery">Safety and recovery</a> ·
+  <a href="#commands">Commands</a> ·
+  <a href="#profiles">Profiles</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/jkordish/orbit/actions/workflows/checks.yml"><img src="https://github.com/jkordish/orbit/actions/workflows/checks.yml/badge.svg" alt="Repository checks"></a>
+</p>
+
+| See the state | Set up the machine | Keep a way back |
+| --- | --- | --- |
+| `orbit status`, `plan`, `enter`, and `map` explain readiness before changes. | `orbit provision` installs general Rust, TypeScript, Python, Go, container, shell, and editor tooling. | Managed files are backed up before replacement; `orbit recovery` inventories saved backups. |
+
+Orbit does not configure any application or project checkout.
+After setup, the managed Zsh configuration provides `orbit` as a shell command;
+before setup, use `./scripts/orbit` from the checkout.
 
 ## Quick start
 
@@ -25,10 +46,17 @@ command. Use `all` to include every optional profile currently defined in
     curl --fail --location --proto '=https' --tlsv1.2 \
       https://raw.githubusercontent.com/jkordish/orbit/main/install.sh | /bin/bash -s -- --profile all
 
-You can also clone Orbit manually and run setup from the checkout:
+To inspect a checkout before changing the machine, clone Orbit and preview the
+selected profile and managed-file changes:
 
     git clone https://github.com/jkordish/orbit.git ~/.config/orbit
     cd ~/.config/orbit
+    ./scripts/orbit plan
+    ./scripts/orbit status
+
+When ready, run setup from that checkout. Add `--profile all` to both `plan`
+and `setup` if you want every optional profile:
+
     ./setup
 
 Setup bootstraps Homebrew when needed, installs declared base packages,
@@ -38,6 +66,8 @@ container service, runs a digest-pinned container smoke check, and reports
 readiness. It needs network access and several GB of free space. Homebrew's
 initial installation may ask for your administrator password; run the rest as
 your normal user. Do not run setup with sudo.
+
+## Safety and recovery
 
 This is a real workstation change. Review Brewfile, profiles/, scripts/apply,
 scripts/configure.py, and scripts/macos-defaults first. Setup is safe to rerun:
