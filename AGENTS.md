@@ -87,8 +87,8 @@ scope.
 - Keep the current state and one useful next action easy to find. Color is
   supplemental; words and symbols must still carry meaning without it.
 - Avoid repeated banners in the full setup flow. Preserve underlying command
-  output so a failed phase remains diagnosable. Render sample phases for visual
-  review; do not reprovision a workstation just to inspect presentation.
+  output so a failed phase remains diagnosable. Use `./setup --preview-ui` to
+  review real setup renderers without provisioning or writing `.state`.
 
 ## Shared AI guidance
 

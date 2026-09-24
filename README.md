@@ -61,6 +61,10 @@ and `setup` if you want every optional profile:
 
     ./setup
 
+To review the actual setup display first, run `./setup --preview-ui`. It shows
+sample start, resume, pause, and completion states at your terminal width,
+without creating setup state or changing the Mac.
+
 Setup bootstraps Homebrew when needed, installs declared base packages,
 applies profiles you explicitly select, installs language runtimes from checked
 manifests, configures managed shell/editor preferences, starts Apple's

@@ -93,12 +93,22 @@ usage_description() {
 
 usage_item() {
   local command_name=$1 description=$2 tone=$3 width=$4
+  if [ -z "$description" ]; then
+    printf '    %s%s%s\n' "$tone" "$command_name" "$color_reset"
+    return
+  fi
   if [ "$width" -ge 58 ]; then
     printf '    %s%-16s%s %s\n' "$tone" "$command_name" "$color_reset" "$description"
   else
     printf '    %s%s%s\n' "$tone" "$command_name" "$color_reset"
     usage_description "$description" "$((width - 6))"
   fi
+}
+
+usage_secondary_item() {
+  local command_name=$1 description=$2 tone=$3 width=$4
+  if [ "$width" -lt 42 ]; then description=''; fi
+  usage_item "$command_name" "$description" "$tone" "$width"
 }
 
 usage_tty() {
@@ -119,44 +129,28 @@ usage_tty() {
   printf '  %s%s%s\n' "$color_muted" "$rule" "$color_reset"
   printf '\n  %sSTART HERE%s\n' "$color_indigo" "$color_reset"
   usage_item 'orbit status' 'See what needs attention' "$color_mint" "$width"
-  usage_item 'orbit map --git' 'Survey project tools and Git' "$color_mint" "$width"
   usage_item 'orbit plan' 'Preview setup scope' "$color_mint" "$width"
+  usage_item 'orbit provision' 'Set up this workstation' "$color_amber" "$width"
 
   printf '\n  %sEXPLORE%s  %sread-only%s\n' "$color_indigo" "$color_reset" "$color_muted" "$color_reset"
-  usage_item 'status' 'Machine readiness (doctor)' "$color_mint" "$width"
-  usage_item 'repo' 'Inspect one checkout' "$color_mint" "$width"
-  usage_item 'recovery' 'Review saved backups' "$color_mint" "$width"
-  usage_item 'profiles' 'Explore optional tool profiles' "$color_mint" "$width"
-  usage_item 'projects' 'Find project manifests' "$color_mint" "$width"
-  usage_item 'map' 'Survey projects; --git and --needs add detail' "$color_mint" "$width"
-  usage_item 'enter' 'Check a project toolchain' "$color_mint" "$width"
-  usage_item 'plan' 'Preview setup scope and changes' "$color_mint" "$width"
+  usage_secondary_item 'repo' 'Inspect one checkout' "$color_mint" "$width"
+  usage_secondary_item 'recovery' 'Review saved backups' "$color_mint" "$width"
+  usage_secondary_item 'profiles' 'Explore optional tool profiles' "$color_mint" "$width"
+  usage_secondary_item 'projects' 'Find project manifests' "$color_mint" "$width"
+  usage_secondary_item 'map' 'Survey projects; --git and --needs add detail' "$color_mint" "$width"
+  usage_secondary_item 'enter' 'Check a project toolchain' "$color_mint" "$width"
 
   if [ "$width" -lt 32 ]; then
     printf '\n  %sMAKE CHANGES%s\n' "$color_indigo" "$color_reset"
   else
     printf '\n  %sMAKE CHANGES%s  %sexplicit only%s\n' "$color_indigo" "$color_reset" "$color_muted" "$color_reset"
   fi
-  usage_item 'provision' 'Set up this workstation (setup)' "$color_amber" "$width"
-  usage_item 'sync' 'Safely return to main' "$color_amber" "$width"
-  usage_item 'services' 'Manage container runtimes' "$color_amber" "$width"
-  usage_item 'check' 'Validate this repository' "$color_amber" "$width"
-  usage_item 'new' 'Browse or create a starter project' "$color_amber" "$width"
-  usage_item 'update' 'Update packages from clean Git' "$color_amber" "$width"
+  usage_secondary_item 'sync' 'Safely return to main' "$color_amber" "$width"
+  usage_secondary_item 'services' 'Manage container runtimes' "$color_amber" "$width"
+  usage_secondary_item 'check' 'Validate this repository' "$color_amber" "$width"
+  usage_secondary_item 'new' 'Browse or create a starter project' "$color_amber" "$width"
+  usage_secondary_item 'update' 'Update packages from clean Git' "$color_amber" "$width"
 
-  printf '\n  %sTRY NEXT%s\n' "$color_indigo" "$color_reset"
-  if [ "$width" -lt 38 ]; then
-    printf '    %sorbit status%s\n' "$color_mint" "$color_reset"
-    printf '    %sorbit map --git%s\n' "$color_mint" "$color_reset"
-    printf '    %sorbit plan%s\n' "$color_mint" "$color_reset"
-    printf '    %sorbit provision%s\n' "$color_amber" "$color_reset"
-  else
-    printf '    %sorbit plan --profile all%s\n' "$color_mint" "$color_reset"
-    printf '    %sorbit provision --profile all%s\n' "$color_amber" "$color_reset"
-    printf '    %sorbit new python my-app ~/src%s\n' "$color_amber" "$color_reset"
-  fi
-  printf '\n  %sJSON OUTPUT%s\n' "$color_indigo" "$color_reset"
-  usage_description 'status, projects, enter, map, plan' "$((width - 6))"
   printf '\n'
 }
 

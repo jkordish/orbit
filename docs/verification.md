@@ -85,9 +85,11 @@ digest-pinned container smoke check, then runs repository checks and doctor.
 Review README.md and the scripts before using it on a machine. The interactive
 setup progress display does not change phase state or resume ordering. Its
 failure state retains the failing exit code and points to `./setup --resume`.
-Review the display at 80 and 24 columns, with color, `NO_COLOR`, and plain
-piped output; the underlying phase output must remain visible. Setup refuses
-symbolic links for its state directory, lock, and phase record before writing.
+Review the display with `./setup --preview-ui` at 80 and 24 columns, with color,
+`NO_COLOR`, and plain piped output. Preview renders sample states without
+creating `.state` or running any phase; real phase output must remain visible.
+Setup refuses symbolic links for its state directory, lock, and phase record
+before writing.
 
 CI runs repository checks on Linux, where macOS-only setup and service commands
 are not invoked. A passing CI run verifies only the workflow steps and commit
