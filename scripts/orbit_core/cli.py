@@ -13,7 +13,7 @@ HELP = {
     "status": "Usage: orbit status [--docker] [--json]\nInspect machine readiness without changing it.",
     "plan": "Usage: orbit plan [--profile NAME|all]... [--json]\nPreview profiles, Brewfile declarations, and managed file changes.",
     "enter": "Usage: orbit enter [PROJECT_DIRECTORY] [--json]\nInspect local project tooling without running project code.",
-    "map": "Usage: orbit map [SOURCE_DIRECTORY] [--git] [--json]\nMap project tooling and optional cached Git state.",
+    "map": "Usage: orbit map [SOURCE_DIRECTORY] [--git] [--needs] [--json]\nMap project tooling, cached Git state, and detected stacks.",
     "projects": "Usage: orbit projects [--json]\nInventory project manifest filenames without opening their contents.",
 }
 
@@ -57,15 +57,17 @@ def main(arguments: list[str]) -> int:
             result = plan.build_report(ORBIT_ROOT, options)
         elif command == "map":
             include_git = "--git" in options
-            if options.count("--git") > 1:
-                return _error(command, "--git may be specified once", json_output)
-            options = [option for option in options if option != "--git"]
+            include_needs = "--needs" in options
+            for flag in ("--git", "--needs"):
+                if options.count(flag) > 1:
+                    return _error(command, f"{flag} may be specified once", json_output)
+            options = [option for option in options if option not in {"--git", "--needs"}]
             if len(options) > 1 or (options and options[0].startswith("-")):
                 return _error(command, HELP[command], json_output)
             source = Path(options[0]).expanduser().resolve() if options else workspace.default_source_root()
             if not source.is_dir():
                 return _error(command, f"no source directory at {source}", json_output)
-            result = workspace.build_report(source, include_git=include_git)
+            result = workspace.build_report(source, include_git=include_git, include_needs=include_needs)
         else:
             if len(options) > 1 or (options and options[0].startswith("-")):
                 return _error(command, HELP[command], json_output)

@@ -205,6 +205,19 @@ Local changes and unpushed commits take priority in the suggested next action.
 Worktrees with a `.git` file are supported; symbolic-link Git markers are
 reported for review without being followed.
 
+Add `--needs` to see which stacks appear in the inspected projects and which
+optional profiles those projects explicitly request:
+
+    ./scripts/orbit map ~/src --needs
+
+Orbit groups recognized stacks and declared profiles by project. For profiles,
+it marks whether each is selected and offers one read-only `orbit plan` command
+for unselected choices. It does not infer optional profiles from language
+manifests or install anything. The map's directory limit, skipped links, and
+invalid declarations still affect coverage; a selected profile does not
+establish package readiness. Combine `--needs` with `--git` to keep local
+changes visible while planning.
+
 ## Profiles
 
 Base installation provides common developer utilities and Rust, Node.js, Go,

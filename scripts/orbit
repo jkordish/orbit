@@ -30,7 +30,7 @@ Read-only views
   ${color_mint}recovery${color_reset}     Inventory preserved setup backups
   ${color_mint}profiles${color_reset}     Explore optional tool profiles
   ${color_mint}projects${color_reset}     Inventory project language manifests
-  ${color_mint}map${color_reset}          Map project tools; add --git for local Git state
+  ${color_mint}map${color_reset}          Map project tools; add --git or --needs
   ${color_mint}enter${color_reset}        Inspect a project's local tool readiness
   ${color_mint}plan${color_reset}         Preview profiles, packages, and managed files
 
@@ -51,6 +51,7 @@ Examples
   orbit projects --json
   orbit map ~/src
   orbit map ~/src --git
+  orbit map ~/src --needs
   orbit plan --profile all
   orbit new --list
   orbit new python morning-brief ~/src --git --commit
@@ -127,7 +128,7 @@ usage_tty() {
   usage_item 'recovery' 'Review saved backups' "$color_mint" "$width"
   usage_item 'profiles' 'Explore optional tool profiles' "$color_mint" "$width"
   usage_item 'projects' 'Find project manifests' "$color_mint" "$width"
-  usage_item 'map' 'Survey local projects; --git adds Git' "$color_mint" "$width"
+  usage_item 'map' 'Survey projects; --git and --needs add detail' "$color_mint" "$width"
   usage_item 'enter' 'Check a project toolchain' "$color_mint" "$width"
   usage_item 'plan' 'Preview profiles, packages, and files' "$color_mint" "$width"
 

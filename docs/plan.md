@@ -61,6 +61,13 @@ recognized project. It checks the working tree and configured upstream using
 cached refs, never network or Orbit's main-only synchronization policy. Dirty,
 ahead, and diverged projects receive priority in the suggested next action;
 the view offers a read-only Git status command for manual inspection.
+The optional `orbit map --needs` view summarizes recognized project stacks
+and aggregates valid, explicit `.orbit.json` profile requests from inspected
+projects. It groups requesting projects and proposes a deduplicated, read-only
+`orbit plan` for unselected profiles. It does not infer optional profile needs
+from manifest language or claim that selected packages are installed. Scan
+limits and invalid declarations remain visible; when combined with `--git`,
+dirty, ahead, or divergent Git state takes priority over the profile plan.
 
 ## Command architecture
 

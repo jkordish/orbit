@@ -68,6 +68,11 @@ dirty, ahead, behind, diverged, worktree, and symbolic-link states. It uses
 cached refs and disables Git optional locks, lazy fetches, and file-system monitors; the
 focused check confirms the index bytes and modification time stay unchanged.
 It does not establish current remote state because it never fetches.
+The optional `map --needs` view reuses `enter`'s bounded stack scan and
+validated `.orbit.json` profile rows. It reports selected names and deduplicates
+unselected names into a read-only `orbit plan` command; it does not infer
+optional profiles from language manifests or verify installed profile packages.
+Scan coverage warnings and Git priority remain in effect.
 
 The full setup workflow has additional machine effects: it bootstraps Homebrew,
 installs selected packages and runtimes, configures managed user settings,

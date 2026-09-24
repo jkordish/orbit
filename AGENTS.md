@@ -56,6 +56,11 @@ scope.
 - scripts/orbit map reuses bounded project entry checks for immediate children
   of one source directory. It skips symbolic links, reports incomplete scan
   coverage, and does not run project code or change project files.
+- orbit map --needs summarizes recognized project stacks and aggregates only
+  valid, explicit .orbit.json profile requests from inspected projects. It
+  suggests one read-only plan for missing selections without inferring optional
+  profiles from language manifests. With --git, dirty, ahead, and divergent Git
+  state keeps next-action priority.
 - orbit map --git compares project checkouts only with their cached configured
   upstreams. Never fetch, sync, or publish from this view; preserve local work
   and avoid assuming every project uses main.
