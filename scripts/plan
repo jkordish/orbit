@@ -1,0 +1,52 @@
+#!/bin/bash
+# Read-only preview of profile choices and managed user file changes.
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: scripts/plan [--profile NAME|all]...
+
+Preview profile selection and managed user file changes without applying them.
+EOF
+}
+
+if [ "${1:-}" = --help ]; then
+  [ "$#" -eq 1 ] || { usage >&2; exit 2; }
+  usage
+  exit 0
+fi
+
+profiles="$ORBIT_ROOT/scripts/profiles"
+"$profiles" --validate "$@"
+existing_text=$("$profiles" --resolve)
+desired_text=$("$profiles" --resolve "$@")
+
+is_existing() {
+  local candidate=$1 name
+  while IFS= read -r name; do
+    if [ "$name" = "$candidate" ]; then return 0; fi
+  done <<< "$existing_text"
+  return 1
+}
+
+printf 'ORBIT / PLAN\n'
+printf '  Read-only preview: profile selection and managed user files.\n'
+printf '  Setup also installs packages and runtimes, applies macOS preferences, starts services, and verifies readiness.\n'
+printf '\nPROFILES\n'
+if [ -z "$desired_text" ]; then
+  printf '  None selected. Base Brewfile still applies.\n'
+else
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    if is_existing "$name"; then
+      printf '  ENABLED %-16s %s\n' "$name" "profiles/$name.Brewfile"
+    else
+      printf '  SELECT  %-16s %s\n' "$name" "profiles/$name.Brewfile"
+    fi
+  done <<< "$desired_text"
+  printf '  Apply checks selected Brewfiles and installs packages as needed.\n'
+fi
+
+printf '\nMANAGED FILES\n'
+"$ORBIT_ROOT/scripts/configure" --plan

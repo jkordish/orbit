@@ -2,14 +2,16 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 cd "$ORBIT_ROOT"
-shell_scripts=(bootstrap.command install.sh setup scripts/apply scripts/configure scripts/doctor scripts/recovery scripts/repository-status scripts/sync scripts/check scripts/services scripts/docker-start scripts/container-check scripts/update scripts/macos-defaults scripts/env.sh scripts/prepare-environments scripts/rust-tools scripts/profiles scripts/new-project scripts/orbit scripts/projects)
+shell_scripts=(bootstrap.command install.sh setup scripts/apply scripts/configure scripts/doctor scripts/recovery scripts/repository-status scripts/sync scripts/check scripts/services scripts/docker-start scripts/container-check scripts/update scripts/macos-defaults scripts/env.sh scripts/prepare-environments scripts/rust-tools scripts/profiles scripts/plan scripts/new-project scripts/orbit scripts/projects)
 for script in "${shell_scripts[@]}"; do bash -n "$script"; done
 shellcheck -x "${shell_scripts[@]}"
 zsh -n config/shell.zsh
-uv run --locked --project templates/python ruff check templates/python scripts/configure.py scripts/rust-tools.py scripts/test-ai-ignore.py scripts/test-starship-trust.py scripts/test-repository-status.py scripts/new_project.py scripts/test-new-project.py scripts/test-recovery.py
+uv run --locked --project templates/python ruff check templates/python scripts/configure.py scripts/rust-tools.py scripts/test-ai-ignore.py scripts/test-starship-trust.py scripts/test-repository-status.py scripts/new_project.py scripts/test-new-project.py scripts/test-recovery.py scripts/test-plan.py
 uv run --locked --project templates/python mypy templates/python
 uv run --locked --project templates/python pytest -q templates/python
 uv run --locked --project templates/python python scripts/test-configure.py
+uv run --locked --project templates/python python scripts/test-plan.py
+./scripts/profiles --verify-catalog
 uv run --locked --project templates/python python scripts/test-relocation.py
 uv run --locked --project templates/python python scripts/test-profiles.py
 uv run --locked --project templates/python python scripts/test-sync.py

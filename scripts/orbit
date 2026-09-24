@@ -27,6 +27,7 @@ Read-only views
   ${color_mint}repo${color_reset}         Read-only Git state for a checkout
   ${color_mint}recovery${color_reset}     Inventory preserved setup backups
   ${color_mint}projects${color_reset}     Inventory project language manifests
+  ${color_mint}plan${color_reset}         Preview profile and managed file changes
 
 Explicit actions
   ${color_amber}provision${color_reset}   Run the complete one-step workstation setup (alias: setup)
@@ -39,6 +40,7 @@ Explicit actions
 Examples
   orbit status --docker
   orbit repo ~/src/my-project
+  orbit plan --profile all
   orbit new python morning-brief ~/src --git --commit
   orbit sync
   orbit services status
@@ -81,6 +83,9 @@ case "$command" in
     ;;
   projects|workspace)
     run_script projects "$@"
+    ;;
+  plan)
+    run_script plan "$@"
     ;;
   provision|setup)
     run_setup "$@"

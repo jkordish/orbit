@@ -1,20 +1,28 @@
 """Preserve user configuration while adding managed defaults once."""
+from __future__ import annotations
+
+import argparse
 import json
 import os
 import shutil
 import stat
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--plan", action="store_true", help="report managed file changes without writing")
+plan_only = parser.parse_args().plan
+planned_changes: list[tuple[str, Path, Path, bool]] = []
 root = Path(os.environ["ORBIT_ROOT"])
 home = Path.home()
 backup = root / ".state/backups"
 if (root / ".state").is_symlink() or backup.is_symlink():
     raise RuntimeError("Refusing to write backups through a symbolic link in .state/backups")
-backup.mkdir(parents=True, exist_ok=True, mode=0o700)
-backup.chmod(0o700)
-stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
+if not plan_only:
+    backup.mkdir(parents=True, exist_ok=True, mode=0o700)
+    backup.chmod(0o700)
+stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
 
 def target_path(path: Path) -> Path:
     if path.is_symlink():
@@ -49,6 +57,9 @@ def write_changed(
     old_mode = stat.S_IMODE(target.stat().st_mode) if target.exists() else None
     target_mode = mode if mode is not None else (old_mode if old_mode is not None else 0o644)
     if old == content_bytes and old_mode == target_mode:
+        return
+    if plan_only:
+        planned_changes.append(("CHANGE" if old is not None else "CREATE", path, target, old is not None))
         return
     if target.exists():
         backup_existing(target, backup_name or path.name)
@@ -152,6 +163,9 @@ def preserve_zsh_history() -> None:
     managed_history = state_home / "zsh/history"
     if managed_history.exists() or managed_history.is_symlink():
         return
+    if plan_only:
+        planned_changes.append(("COPY", old_history, managed_history, False))
+        return
     managed_history.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     descriptor, temporary_name = tempfile.mkstemp(prefix=".history.", dir=managed_history.parent)
     os.close(descriptor)
@@ -168,7 +182,8 @@ def preserve_zsh_history() -> None:
 
 
 managed_dir = home / ".config/orbit"
-managed_dir.mkdir(parents=True, exist_ok=True)
+if not plan_only:
+    managed_dir.mkdir(parents=True, exist_ok=True)
 shell_source = root / "config/shell.zsh"
 if shell_source.is_file():
     write_changed(managed_dir / "shell.zsh", shell_source.read_text(), "shell.zsh")
@@ -263,3 +278,11 @@ if updated_ghostty:
 updated_ghostty += font_include + "\n"
 if updated_ghostty != old:
     write_changed(ghostty, updated_ghostty)
+
+if plan_only:
+    if not planned_changes:
+        print("  No managed file changes.")
+    for action, path, target, existing in planned_changes:
+        destination = f"{path} -> {target}" if path != target else str(target)
+        backup_note = " (backup before apply)" if existing else ""
+        print(f"  {action:<6} {destination}{backup_note}")

@@ -10,7 +10,7 @@ state_file="$state_root/profiles.txt"
 # Keep this list aligned with profiles/*.Brewfile. The explicit list also lets
 # this validator work when copied on its own by setup diagnostics and checks.
 available_profiles=(autocomplete cloud editors infra java wasm)
-usage() { echo 'Usage: scripts/profiles [--list|--validate|--select|--install|--check|--update] [--profile NAME|all ...]' >&2; }
+usage() { echo 'Usage: scripts/profiles [--list|--validate|--select|--resolve|--verify-catalog|--install|--check|--update] [--profile NAME|all ...]' >&2; }
 valid() {
   local candidate
   for candidate in "${available_profiles[@]}"; do
@@ -34,6 +34,15 @@ selected() {
   done
   return 1
 }
+append_once() {
+  local name=$1 candidate
+  if [ "${#resolved[@]}" -gt 0 ]; then
+    for candidate in "${resolved[@]}"; do
+      if [ "$candidate" = "$name" ]; then return 0; fi
+    done
+  fi
+  resolved+=("$name")
+}
 validate_file "$config_file"
 validate_file "$state_file"
 requested=()
@@ -49,6 +58,34 @@ while [ "$#" -gt 0 ]; do
 done
 case "$mode" in
   --validate) exit 0 ;;
+  --resolve)
+    resolved=()
+    for file in "$config_file" "$state_file"; do
+      [ -f "$file" ] || continue
+      while IFS= read -r name || [ -n "$name" ]; do
+        case "$name" in ''|\#*) continue ;; esac
+        append_once "$name"
+      done < "$file"
+    done
+    if [ "${#requested[@]}" -gt 0 ]; then
+      for name in "${requested[@]}"; do append_once "$name"; done
+    fi
+    if [ "${#resolved[@]}" -gt 0 ]; then printf '%s\n' "${resolved[@]}"; fi
+    exit 0 ;;
+  --verify-catalog)
+    [ "${#requested[@]}" -eq 0 ] || { usage; exit 2; }
+    for name in "${available_profiles[@]}"; do
+      if [ ! -f "$root/profiles/$name.Brewfile" ]; then
+        printf 'Missing Brewfile for profile: %s\n' "$name" >&2
+        exit 1
+      fi
+    done
+    for brewfile in "$root"/profiles/*.Brewfile; do
+      [ -f "$brewfile" ] || continue
+      name=${brewfile##*/}
+      valid "${name%.Brewfile}"
+    done
+    exit 0 ;;
   --select)
     [ "${#requested[@]}" -gt 0 ] || exit 0
     if [ -L "$state_root" ] || [ -L "$state_root/backups" ] || [ -L "$state_file" ]; then

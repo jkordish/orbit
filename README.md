@@ -1,6 +1,7 @@
 # Orbit
 
-A repeatable, reversible setup for an Apple Silicon macOS development machine.
+A repeatable setup with preserved configuration backups for an Apple Silicon
+macOS development machine.
 It provides general tooling for Rust, TypeScript, Python, Go, containers,
 shell work, and editor workflows. It does not configure any application or
 project checkout.
@@ -40,14 +41,19 @@ your normal user. Do not run setup with sudo.
 
 This is a real workstation change. Review Brewfile, profiles/, scripts/apply,
 scripts/configure.py, and scripts/macos-defaults first. Setup is safe to rerun:
-package installation does not upgrade or remove existing packages, managed
-configuration is backed up before replacement, unchanged configuration does
-not create repeat backups, and setup phases are serialized. Local state and
-backups live under ignored .state/.
+Homebrew is asked to avoid upgrades and package removal, managed configuration
+is backed up before replacement, unchanged configuration does not create repeat
+backups, and setup phases are serialized. Homebrew may still upgrade a package
+when [installation requires it](https://docs.brew.sh/Manpage). Local state and
+backups live under ignored .state/; scripts/recovery inventories them for
+manual restoration.
 
 If a run stops, inspect .state/provision-state and resume with:
 
     ./setup --resume
+
+To select new profiles, run a normal `./setup --profile NAME` so apply is not
+skipped. `--resume` rejects profile arguments.
 
 A normal ./setup reconciles from the beginning. For a read-only readiness
 report, run ./scripts/doctor. To install packages and configure dotfiles
@@ -60,6 +66,7 @@ without the full service and smoke-check phases, use ./scripts/apply.
 | ./setup | Full repeatable workstation provisioning |
 | ./scripts/apply | Install packages, runtimes, profiles, and managed configuration |
 | ./scripts/doctor | Read-only readiness report |
+| ./scripts/plan | Read-only preview of profile selection and managed file changes |
 | ./scripts/check | Repository and language-template validation |
 | ./scripts/profiles --list | Show optional profiles |
 | ./scripts/services status | Inspect container service state |
@@ -77,6 +84,17 @@ synchronize, or start services. On macOS versions that include Apple's
 Foundation Models CLI, doctor may report whether its system-wide license terms
 have been accepted. It never agrees to terms; that decision belongs to the
 machine's administrator.
+
+From a checkout, preview optional profile selection and managed user file edits
+before applying:
+
+    ./scripts/plan --profile all
+    ./setup --profile all
+
+The preview lists target paths and whether an existing file would be backed up;
+it never prints file contents. Its current scope is profile choices and managed
+user files. Full setup also installs packages and runtimes, applies macOS
+preferences, starts services, and runs checks.
 
 ## Profiles
 

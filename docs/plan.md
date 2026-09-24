@@ -26,3 +26,13 @@ without running workstation setup.
 Local profiles and recovery backups belong under ignored .state/. Shared
 instructions and templates remain versioned. Never commit credentials, local
 assistant sessions, machine inventories, or generated setup history.
+
+## Change preview
+
+`orbit plan` is a read-only first step toward an inspectable setup. It resolves
+the same profile names as apply and uses the configurator's file comparison
+logic to preview creates and changes. It displays destinations and backup
+intent, never file contents. The current plan does not cover package resolution,
+runtime installation, macOS defaults, or services, so setup remains the owner
+of those effects. Future receipts and restoration should reuse this change
+model and refuse to overwrite a destination that changed after Orbit applied it.

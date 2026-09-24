@@ -5,7 +5,7 @@ cd "$ORBIT_ROOT"
 
 usage() {
   cat <<'EOF'
-Usage: ./setup [--resume] [--profile NAME]...
+Usage: ./setup [--resume] [--profile NAME|all]...
 
 Provision the complete managed Apple Silicon workstation:
 Homebrew, profiles, locked runtimes, user configuration, services, a pinned
@@ -38,6 +38,10 @@ if [ "${#setup_args[@]}" -gt 0 ]; then
   ./scripts/profiles --validate "${setup_args[@]}"
 else
   ./scripts/profiles --validate
+fi
+if [ "$resume_requested" -eq 1 ] && [ "${#setup_args[@]}" -gt 0 ]; then
+  printf 'HOLD · --resume cannot select new profiles because it may skip apply. Run ./setup with the profile arguments to reconcile from the beginning.\n' >&2
+  exit 2
 fi
 
 state_root="$ORBIT_ROOT/.state"

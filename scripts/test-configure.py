@@ -39,6 +39,18 @@ with tempfile.TemporaryDirectory() as temporary:
     docker = home / ".docker/config.json"
     docker.write_text(json.dumps({"credsStore": "desktop", "cliPluginsExtraDirs": ["/custom"]}))
     env = dict(os.environ, HOME=str(home), ORBIT_ROOT=str(root))
+    preview = subprocess.run(
+        [sys.executable, str(script), "--plan"],
+        env=env, check=True, capture_output=True, text=True,
+    )
+    assert "CHANGE" in preview.stdout
+    assert str(home / ".gitconfig") in preview.stdout
+    assert not (root / ".state").exists()
+    assert not (home / ".config/orbit").exists()
+    assert (home / ".gitconfig").read_text() == legacy_git_include + original_git
+    assert docker.read_text() == json.dumps(
+        {"credsStore": "desktop", "cliPluginsExtraDirs": ["/custom"]}
+    )
     subprocess.run([sys.executable, str(script)], env=env, check=True)
     assert (home / ".config/starship.toml").read_text() == "add_newline = true\n"
     assert any(p.read_text() == "# existing prompt\n" for p in (root / ".state/backups").glob("starship.toml.*"))
@@ -67,5 +79,11 @@ with tempfile.TemporaryDirectory() as temporary:
     assert (home / ".ssh/config").read_text() == first_ssh
     assert ghostty.read_text() == first_ghostty
     assert docker.read_text() == first_docker
+    assert len(list((root / ".state/backups").iterdir())) == 6
+    settled_preview = subprocess.run(
+        [sys.executable, str(script), "--plan"],
+        env=env, check=True, capture_output=True, text=True,
+    )
+    assert "No managed file changes" in settled_preview.stdout
     assert len(list((root / ".state/backups").iterdir())) == 6
 print("Configuration preserves existing values and is idempotent.")
