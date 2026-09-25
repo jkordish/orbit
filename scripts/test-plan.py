@@ -25,6 +25,7 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
     shutil.copy2(source / "setup", root / "setup")
     for brewfile in (source / "profiles").glob("*.Brewfile"):
         shutil.copy2(brewfile, root / "profiles" / brewfile.name)
+    profile_count = len(list((root / "profiles").glob("*.Brewfile")))
     for filename in ("shell.zsh", "gitconfig", "ssh.config", "starship.toml", "ghostty.conf"):
         shutil.copy2(source / "config" / filename, root / "config" / filename)
     (root / "config/profiles.txt").write_text("# no shared profiles\n")
@@ -40,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
     assert preview.returncode == 0, preview.stderr
     report = json.loads(preview.stdout)
     assert report["schema_version"] == 1
-    assert sum(row["state"] == "SELECT" for row in report["rows"]) == 6
+    assert sum(row["state"] == "SELECT" for row in report["rows"]) == profile_count
     assert any(row["group"] == "Managed files" for row in report["rows"])
     assert any(row["state"] == "CREATE" for row in report["rows"])
     assert not (root / ".state").exists()
@@ -62,7 +63,7 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
     assert preview.returncode == 0, preview.stderr
     report = json.loads(preview.stdout)
     assert any(row["state"] == "ENABLED" and row["label"] == "cloud" for row in report["rows"])
-    assert sum(row["state"] == "SELECT" for row in report["rows"]) == 5
+    assert sum(row["state"] == "SELECT" for row in report["rows"]) == profile_count - 1
 
     (root / ".state/provision-state").write_text("phase=complete\n")
     resumed_with_profile = run("setup", "--resume", "--profile", "all")

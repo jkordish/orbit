@@ -83,7 +83,7 @@ with tempfile.TemporaryDirectory(prefix="orbit ai profiles ") as temp:
 
     # Isolate the new profile; never invoke the real Homebrew executable.
     state.write_text("ai-dev\n")
-    expected_file = f"--file={root / 'profiles/ai-dev.Brewfile'}"
+    expected_file = f"--file={root.resolve() / 'profiles/ai-dev.Brewfile'}"
     for mode, expected in (
         ("--check", ["bundle", "check", expected_file]),
         ("--install", ["bundle", "install", expected_file, "--no-upgrade"]),
