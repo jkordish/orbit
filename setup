@@ -19,7 +19,7 @@ stops, --resume continues from the recorded phase.
 
 --preview-ui shows sample setup states without changing this Mac or .state.
 
-Profiles: cloud infra wasm editors autocomplete java; use --profile all for every profile.
+Profiles: ai-dev cloud infra wasm editors autocomplete java; use --profile all for every profile.
 EOF
 }
 

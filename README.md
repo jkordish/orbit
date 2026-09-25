@@ -247,7 +247,7 @@ names are stored in ignored .state/profiles.txt, not tracked configuration.
     ./setup --profile infra --profile cloud
     ./scripts/orbit profiles
 
-Available profiles are autocomplete, cloud, editors, infra, java, and wasm.
+Available profiles are ai-dev, autocomplete, cloud, editors, infra, java, and wasm.
 `--profile all` selects every optional profile defined in `profiles/`. The
 cloud profile currently provides AWS tooling. Review each profile Brewfile
 before selecting it; Homebrew taps and formulas run third-party installation
@@ -310,6 +310,13 @@ The templates use lockfiles and document their checks. The Nix template asks
 you to create and commit flake.lock for a specific project before sharing it.
 
 ## AI tooling and local data
+
+For creating and training models, select the optional `ai-dev` profile. It adds
+DuckDB, the Hugging Face CLI, and Hyperfine while reusing the base Rust/Python
+build tools. The [AI development guide](docs/ai-development.md) describes a
+Rust-first Burn workflow, optional Candle/MLX paths, project-owned dependencies,
+and explicit data/artifact handling. Preview with `orbit plan --profile ai-dev`;
+from the checkout, apply with `./scripts/apply --profile ai-dev`.
 
 This repository does not select a model provider, download model weights, send
 prompts, or configure a particular coding assistant. Install and configure

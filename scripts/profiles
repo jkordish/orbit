@@ -9,7 +9,7 @@ state_root="$root/.state"
 state_file="$state_root/profiles.txt"
 # Keep this list aligned with profiles/*.Brewfile. The explicit list also lets
 # this validator work when copied on its own by setup diagnostics and checks.
-available_profiles=(autocomplete cloud editors infra java wasm)
+available_profiles=(ai-dev autocomplete cloud editors infra java wasm)
 usage() { echo 'Usage: scripts/profiles [--list|--validate|--select|--resolve|--verify-catalog|--install|--check|--update] [--profile NAME|all ...]' >&2; }
 valid() {
   local candidate
@@ -46,6 +46,7 @@ append_once() {
 
 profile_description() {
   case "$1" in
+    ai-dev) printf 'Datasets, model artifacts, and benchmarks' ;;
     autocomplete) printf 'Inline Zsh completion suggestions' ;;
     cloud) printf 'AWS, Kubernetes, Helm, and Argo CD' ;;
     editors) printf 'Helix, language servers, and Tree-sitter' ;;
