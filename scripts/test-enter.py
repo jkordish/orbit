@@ -75,7 +75,14 @@ with tempfile.TemporaryDirectory(prefix="orbit enter ") as temporary:
 
     code, result = inspect(project, orbit, answers)
     assert code == 1 and "SELECT" in result and "profile/wasm" in result, result
-    assert "./setup --profile wasm" in result, result
+    assert "orbit provision --profile wasm" in result, result
+
+    unavailable_container = dict(answers, container=(False, "command unavailable"))
+    code, result = inspect(project, orbit, unavailable_container, "wasm\n")
+    assert code == 1 and "orbit services enable container" in result, result
+    unavailable_docker = dict(answers, docker=(False, "command unavailable"))
+    code, result = inspect(project, orbit, unavailable_docker, "wasm\n")
+    assert code == 1 and "orbit services enable colima" in result, result
 
     mismatched = dict(answers, node=(True, "v18.0.0"))
     code, result = inspect(project, orbit, mismatched, "wasm\n")

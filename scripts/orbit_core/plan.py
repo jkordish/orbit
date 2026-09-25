@@ -220,7 +220,7 @@ def build_report(root: Path, arguments: list[str], *, details: bool = False) -> 
         preference_summary += f" ({_count(preference_changes, 'difference', 'differences')})"
     new_profiles = [name for name in desired if name not in existing]
     flags = " ".join(f"--profile {shlex.quote(name)}" for name in new_profiles)
-    action = f"cd {shlex.quote(str(root))} && ./setup"
+    action = "orbit provision"
     if flags:
         action += f" {flags}"
     return Report(

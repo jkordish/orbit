@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
     (root / "profiles").mkdir()
     for filename in (
         "env.sh", "profiles", "configure", "configure.py", "plan",
-        "orbit-python", "orbit_cli.py", "setup-ui.sh",
+        "orbit", "orbit-python", "orbit_cli.py", "setup-ui.sh",
     ):
         shutil.copy2(source / "scripts" / filename, root / "scripts" / filename)
     shutil.copytree(source / "scripts/orbit_core", root / "scripts/orbit_core", ignore=shutil.ignore_patterns("__pycache__"))
@@ -30,6 +30,7 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
         shutil.copy2(source / "config" / filename, root / "config" / filename)
     (root / "config/profiles.txt").write_text("# no shared profiles\n")
     env = dict(os.environ, HOME=str(home))
+    env.pop("ORBIT_SETUP_ENTRYPOINT", None)
 
     def run(script, *args):
         return subprocess.run(
@@ -37,10 +38,28 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
             check=False,
         )
 
+    direct_help = run("setup", "--help")
+    assert direct_help.returncode == 0
+    assert direct_help.stdout.startswith("Usage: ./setup ")
+    orbit_help = run("scripts/orbit", "provision", "--help")
+    assert orbit_help.returncode == 0
+    assert orbit_help.stdout.startswith("Usage: orbit provision ")
+    assert "Usage: ./setup" not in orbit_help.stdout
+    invalid_preview = run("scripts/orbit", "provision", "--preview-ui", "--resume")
+    assert invalid_preview.returncode == 2
+    assert "Usage: orbit provision --preview-ui" in invalid_preview.stderr
+    orbit_preview = run("scripts/orbit", "provision", "--preview-ui")
+    assert orbit_preview.returncode == 0
+    assert "orbit provision --resume" in orbit_preview.stdout
+    direct_preview = run("setup", "--preview-ui")
+    assert direct_preview.returncode == 0
+    assert "./setup --resume" in direct_preview.stdout
+
     preview = run("scripts/plan", "--profile", "all", "--json")
     assert preview.returncode == 0, preview.stderr
     report = json.loads(preview.stdout)
     assert report["schema_version"] == 1
+    assert report["next_action"].startswith("orbit provision --profile ")
     assert sum(row["state"] == "SELECT" for row in report["rows"]) == profile_count
     assert any(row["group"] == "Managed files" for row in report["rows"])
     assert any(row["state"] == "CREATE" for row in report["rows"])
@@ -72,6 +91,9 @@ with tempfile.TemporaryDirectory(prefix="orbit plan ") as temporary:
     assert not (root / ".state/provision.lock").exists()
     resumed = run("setup", "--resume")
     assert resumed.returncode == 0, resumed.stderr
-    assert "already complete" in resumed.stdout
+    assert "use ./setup" in resumed.stdout
+    orbit_resumed = run("scripts/orbit", "provision", "--resume")
+    assert orbit_resumed.returncode == 0, orbit_resumed.stderr
+    assert "use orbit provision" in orbit_resumed.stdout
 
-print("Plan preview and resume guard passed without touching the real home.")
+print("Plan preview, command guidance, and resume guard passed without touching the real home.")

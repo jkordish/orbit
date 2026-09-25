@@ -169,6 +169,7 @@ run_script() {
 }
 
 run_setup() {
+  export ORBIT_SETUP_ENTRYPOINT=orbit
   exec "$ORBIT_ROOT/setup" "$@"
 }
 

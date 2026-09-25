@@ -427,19 +427,18 @@ def build_report(root: Path, *, inventory: ScanResult | None = None) -> Report:
     if not checks:
         rows.append(Row("Readiness", "REVIEW", "No requirements", "Project tooling cannot be confirmed"))
 
-    command_root = shlex.quote(str(ORBIT_ROOT))
     if missing_profiles:
         flags = " ".join(f"--profile {shlex.quote(name)}" for name in missing_profiles)
-        next_action = f"cd {command_root} && ./setup {flags}"
+        next_action = f"orbit provision {flags}"
     elif missing_base:
-        next_action = f"cd {command_root} && ./setup"
+        next_action = "orbit provision"
     elif missing_special:
         next_action = f"Install or select {missing_special[0]} for this project"
     elif missing_service:
         if any(state == "MISSING" and name == "Docker" for state, name, _ in checks):
-            next_action = f"cd {command_root} && ./scripts/services enable colima"
+            next_action = "orbit services enable colima"
         else:
-            next_action = f"cd {command_root} && ./scripts/services enable container"
+            next_action = "orbit services enable container"
     elif mismatch or reviews:
         next_action = "Review the declaration above and select its project-compatible toolchain"
     elif not checks:

@@ -4,6 +4,7 @@ phase_total=7
 resume_requested=${resume_requested:-0}
 resume_phase=${resume_phase:-}
 effective_profiles=${effective_profiles:-}
+setup_command=${setup_command:-./setup}
 interactive=0
 color_reset=''
 color_indigo=''
@@ -195,6 +196,34 @@ phase_started() {
   fi
 }
 
+setup_narrow_action() {
+  local action=$1 tone=$2 width=$3 prefix continuation remaining word line=''
+  if [ "$width" -lt 24 ]; then
+    prefix='  '
+    continuation='  '
+  else
+    prefix='    ↳ '
+    continuation='      '
+  fi
+  remaining=$action
+  while [ -n "$remaining" ]; do
+    word=${remaining%% *}
+    if [ "$remaining" = "$word" ]; then
+      remaining=''
+    else
+      remaining=${remaining#* }
+    fi
+    if [ -n "$line" ] && [ "$(( ${#prefix} + ${#line} + 1 + ${#word} ))" -gt "$width" ]; then
+      printf '%s%s%s%s\n' "$tone" "$prefix" "$line" "$color_reset"
+      prefix=$continuation
+      line=$word
+    else
+      line="${line:+$line }$word"
+    fi
+  done
+  printf '%s%s%s%s\n' "$tone" "$prefix" "$line" "$color_reset"
+}
+
 setup_outcome() {
   local state=$1 detail=$2 hint=$3 action=$4 tone=$5
   local short_detail=$6 short_hint=$7 width line
@@ -208,11 +237,7 @@ setup_outcome() {
       while IFS= read -r line; do printf '  %s\n' "$line"; done <<< "$short_detail"
       printf '  %sNEXT%s\n' "$color_amber" "$color_reset"
       while IFS= read -r line; do printf '    %s\n' "$line"; done <<< "$short_hint"
-      if [ "$width" -lt 24 ]; then
-        printf '  %s%s%s\n' "$tone" "$action" "$color_reset"
-      else
-        printf '    %s↳ %s%s\n' "$tone" "$action" "$color_reset"
-      fi
+      setup_narrow_action "$action" "$tone" "$width"
     else
       printf '  %s\n' "$detail"
       printf '  %sNEXT%s  %s\n' "$color_amber" "$color_reset" "$hint"
@@ -288,8 +313,8 @@ setup_ui_preview() {
   phase_started 4 'Container service'
 
   setup_outcome HOLD '4/7 Container service · exit 1 · 3s' \
-    'Resolve the error above, then run from Orbit:' './setup --resume' "$color_rose" \
-    $'4/7\nContainer service\nexit 1 · 3s' $'Fix error above.\nIn Orbit folder:'
+    'Resolve the error above, then run:' "$setup_command --resume" "$color_rose" \
+    $'4/7\nContainer service\nexit 1 · 3s' $'Fix error above.\nThen run:'
 
   setup_outcome READY '7/7 phases complete · 2m 14s' \
     'Open a new terminal, then run:' 'orbit status' "$color_mint" \

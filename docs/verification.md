@@ -84,7 +84,9 @@ applies backed-up macOS defaults, starts Apple's container service, runs a
 digest-pinned container smoke check, then runs repository checks and doctor.
 Review README.md and the scripts before using it on a machine. The interactive
 setup progress display does not change phase state or resume ordering. Its
-failure state retains the failing exit code and points to `./setup --resume`.
+failure state retains the failing exit code. It points to
+`orbit provision --resume` when launched through Orbit, or `./setup --resume`
+when launched directly or by the curl installer.
 Review the display with `./setup --preview-ui` at 80 and 24 columns, with color,
 `NO_COLOR`, and plain piped output. Preview renders sample states without
 creating `.state` or running any phase; real phase output must remain visible.

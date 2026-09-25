@@ -2,12 +2,15 @@
 set -euo pipefail
 ORBIT_ROOT=$(cd "$(dirname "$0")" && pwd -P)
 cd "$ORBIT_ROOT"
+setup_command='./setup'
+if [ "${ORBIT_SETUP_ENTRYPOINT:-}" = orbit ]; then
+  setup_command='orbit provision'
+fi
 
 usage() {
+  printf 'Usage: %s [--resume] [--profile NAME|all]...\n' "$setup_command"
+  printf '       %s --preview-ui\n\n' "$setup_command"
   cat <<'EOF'
-Usage: ./setup [--resume] [--profile NAME|all]...
-       ./setup --preview-ui
-
 Provision the complete managed Apple Silicon workstation:
 Homebrew, profiles, locked runtimes, user configuration, services, a pinned
 container smoke check, repository checks, and a final readiness report.
@@ -40,7 +43,7 @@ for argument in "$@"; do
 done
 
 if [ "$preview_requested" -eq 1 ] && { [ "$resume_requested" -eq 1 ] || [ "${#setup_args[@]}" -gt 0 ]; }; then
-  printf 'Usage: ./setup --preview-ui (without --resume or profiles)\n' >&2
+  printf 'Usage: %s --preview-ui (without --resume or profiles)\n' "$setup_command" >&2
   exit 2
 fi
 
@@ -58,7 +61,7 @@ else
   ./scripts/profiles --validate
 fi
 if [ "$resume_requested" -eq 1 ] && [ "${#setup_args[@]}" -gt 0 ]; then
-  printf 'HOLD · --resume cannot select new profiles because it may skip apply. Run ./setup with the profile arguments to reconcile from the beginning.\n' >&2
+  printf 'HOLD · --resume cannot select new profiles because it may skip apply. Run %s with the profile arguments to reconcile from the beginning.\n' "$setup_command" >&2
   exit 2
 fi
 scope_args=()
@@ -77,7 +80,7 @@ mkdir -p "$state_root"
 
 if [ "$resume_requested" -eq 1 ]; then
   if [ ! -r "$state_file" ]; then
-    printf 'HOLD · no previous provisioning phase is recorded; run ./setup once first.\n' >&2
+    printf 'HOLD · no previous provisioning phase is recorded; run %s once first.\n' "$setup_command" >&2
     exit 1
   fi
   resume_phase=$(sed -n 's/^phase=//p' "$state_file" | head -n 1)
@@ -85,7 +88,7 @@ if [ "$resume_requested" -eq 1 ]; then
   case "$resume_phase" in
     bootstrap|apply|preferences|services|container-smoke|repository-check|readiness) ;;
     complete)
-      printf 'READY · the last setup run is already complete; use ./setup to reconcile from the beginning.\n'
+      printf 'READY · the last setup run is already complete; use %s to reconcile from the beginning.\n' "$setup_command"
       exit 0
       ;;
     *)
@@ -116,7 +119,7 @@ if [ "$resume_requested" -eq 1 ]; then
     '')
       case "$resume_phase" in
         bootstrap|apply)
-          printf 'HOLD · this older setup record did not save its profile choices. Rerun ./setup with the original --profile options.\n' >&2
+          printf 'HOLD · this older setup record did not save its profile choices. Rerun %s with the original --profile options.\n' "$setup_command" >&2
           exit 1
           ;;
       esac
@@ -206,9 +209,9 @@ run_phase() {
     elapsed=$(duration "$((SECONDS - started))")
     write_state
     setup_outcome HOLD "$phase_number/$phase_total $label · exit $status · $elapsed" \
-      'Resolve the error above, then run from Orbit:' './setup --resume' "$color_rose" \
+      'Resolve the error above, then run:' "$setup_command --resume" "$color_rose" \
       "$phase_number/$phase_total"$'\n'"$label"$'\n'"exit $status · $elapsed" \
-      $'Fix error above.\nIn Orbit folder:' >&2
+      $'Fix error above.\nThen run:' >&2
     exit "$status"
   fi
 }
